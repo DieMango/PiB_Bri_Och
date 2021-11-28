@@ -11,89 +11,48 @@ import java.util.random.*;
 public class Connector 
 {
 
-	public static void main(String[] args) 
+	public static void main(String[] args)
 	{
 		String hostname = "localhost";
 		int port = 12300;
-		try (Socket socket = new Socket(hostname, port))
+
+		Agent agents[] = new Agent[15];// create Array that contains each agent to loop through
+
+		for(int i=1;i<=15;i++)	// loop through every Agent once to receive, calculate and send messages
 		{
-
-			OutputStream raus = socket.getOutputStream();
-
-			InputStream input = socket.getInputStream();
-			InputStreamReader reader = new InputStreamReader(input);
-
-			String agent = "agentA1";
-			String password = "1";
-
-			raus.write(createAuthMessage(agent,password));	//Authentification Message
-
-			int character;
-			StringBuilder data = new StringBuilder();
-			Random randomDirection = new Random();
-			while(true)
+			try
 			{
-
-				data = new StringBuilder();
-				// receive data
-				while ((character = reader.read()) != 0)
-				{            //Input reader
-					data.append((char) character);
-					//System.out.println(data);
-				}
-
-
-				String moveDirection = "n";
-
-				switch (randomDirection.nextInt(4))//random Direction generation
-				{
-					case 0: moveDirection = "n"; break;
-					case 1: moveDirection = "e"; break;
-					case 2: moveDirection = "s"; break;
-					case 3: moveDirection = "w"; break;
-				}
-
-
-
-
-				System.out.println(data);                    //Input print to Console
-
-
-				// get id for Action out of the request string
-				// search for "id"  until the
-				int idStart = data.indexOf("id\":");
-				idStart += 4;
-				int idEnd = data.indexOf(",", idStart);
-
-				String action_id = "";
-				if (idStart != -1)
-				{
-					action_id = data.substring(idStart, idEnd);
-					//System.out.println(action_id);
-				}
-
-				//If message contains type "Request-action" send out an action
-				if(data.indexOf("request-action")!= -1)
-				{
-					raus.write(createMoveMessage(action_id,moveDirection));	//output message
-				}
-
-
-
+				agents[i-1] = new Agent(i);
+				agents[i-1].setSocket(hostname,port);	// conncet to server via Socket
+				agents[i-1].sendAuthMessage();		// send Authentification Message to start communication
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
 			}
 		}
 
-		catch (UnknownHostException ex)
+		while(true) //infite loop for the all the game
 		{
-			System.out.println("Server not found: " + ex.getMessage());
+			for(int i=1;i<=15;i++)	// loop through every Agent once to receive, calculate and send messages
+			{
+				try
+				{
+					agents[i-1].receiveData();
+					agents[i-1].reactToInput();
+
+				} catch (IOException e)
+				{
+					e.printStackTrace();
+				}
+
+
+			}
+
 
 		}
-		catch (IOException ex)
-		{
-			System.out.println("I/O error: " + ex.getMessage());
-		}
+
 	}
-
 
 
 
@@ -103,14 +62,18 @@ public class Connector
 
 		return convertMessage(JsonMoveString);
 	}
-
-	public static byte[] createAuthMessage(String agent,String password) // creates Authentification Message from agent-number and password given
+	public static byte[] createAuthMessage(String agent,String password) // creates Authentication Message from agent-number and password given
 	{
 		String jsonAuthData = "{'type': 'auth-request','content': {'user': '" + agent + "','pw': '"+ password +  "'}}0";
 
 		return	convertMessage(jsonAuthData);
 	}
-
+	public static byte[] createAcceptMessage(String id,String taskId)	//creates Move Message from id and direction given
+	{
+		String JsonMoveString = "{'type': 'action','content': {'id': " + id +",'type': 'accept','p': ['"+ taskId +"']}}0";
+		System.out.println(JsonMoveString);
+		return convertMessage(JsonMoveString);
+	}
 	public static byte[] convertMessage(String message) // converts message from a String into a sendable Json-Byte-String
 	{
 		byte[] convertedString = message.getBytes(StandardCharsets.UTF_8);
