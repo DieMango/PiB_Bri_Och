@@ -3,14 +3,17 @@ Team Name:
 keeping Totally not Spies (TNS) ?
 
 Exploration:
-Loop to assign movent tasks to all agents
+Loop to assign movent tasks to all agents (DONE)
 
 Reaching  Tasks:
 movement staight to taskblock when in view (distance to accept a tast is <= 2 blocks)
-  pulling the taskblock position from the datastream
+  pulling the taskblock position from the datastream (DONE)
+ New TODO
+ Agents block each other at the Taskblocks, they need to go after accepting a task
+ improve movent towards tasks when the path is obstructed
 
 Getting tasks:
-implementing an accept action when an agend is in reach of an taskfield (<=2 blocks away)
+implementing an accept action when an agend is in reach of an taskfield (<=2 blocks away) (DONE)
 
 Making a presentation till thursday 02.12.21 13:30
 
