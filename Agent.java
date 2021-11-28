@@ -91,10 +91,42 @@ public class Agent
             action_id = receivedData.substring(idStart, idEnd);
             //System.out.println(action_id);
         }
-
-        System.out.println(action_id);
         return action_id;
     }
+
+    private String[] searchSurroundings(String object) // searches the percept for the object given and returns x and y coordinates
+    {
+        int percStart = receivedData.indexOf("percept\":");
+
+        int thingsStart = receivedData.indexOf("things\":",percStart);
+
+        int objectEnd = receivedData.indexOf(object,thingsStart);
+
+        if (objectEnd != -1)
+        {
+            String subString = receivedData.substring(thingsStart,objectEnd);
+
+            int coordsStart= subString.lastIndexOf("{");
+
+            int xCoordStart = subString.indexOf("x",coordsStart) + 3;
+            int xCoordEnd = subString.indexOf(",",xCoordStart)-1;
+
+            int yCoordStart = subString.indexOf("x",coordsStart) + 3;
+            int yCoordEnd = subString.indexOf(",",yCoordStart)-1;
+
+            String xCoordString = subString.substring(xCoordStart,xCoordEnd);
+            String yCoordString = subString.substring(yCoordStart,yCoordEnd);
+
+            String [] returnString = new String[2];
+            returnString[0] = xCoordString;
+            returnString[1] = yCoordString;
+
+            return returnString;
+
+        }
+        return null;
+    }
+
 
 
 
