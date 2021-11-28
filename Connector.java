@@ -68,6 +68,12 @@ public class Connector
 
 		return	convertMessage(jsonAuthData);
 	}
+	public static byte[] createAcceptMessage(String id,String taskId)	//creates Move Message from id and direction given
+	{
+		String JsonMoveString = "{'type': 'action','content': {'id': " + id +",'type': 'accept','p': ['"+ taskId +"']}}0";
+		System.out.println(JsonMoveString);
+		return convertMessage(JsonMoveString);
+	}
 	public static byte[] convertMessage(String message) // converts message from a String into a sendable Json-Byte-String
 	{
 		byte[] convertedString = message.getBytes(StandardCharsets.UTF_8);

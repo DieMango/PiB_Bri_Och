@@ -30,8 +30,13 @@ public class Agent
     }
     public void sendMoveMessage(String id,String direction) throws IOException
     {
-        output.write(Connector.createMoveMessage(agentName,direction));
+        output.write(Connector.createMoveMessage(id,direction));
     }
+    public void sendAcceptMessage(String id,String taskName) throws IOException
+    {
+        output.write(Connector.createAcceptMessage(id,taskName));
+    }
+
     public void setSocket(String host,int port) throws IOException
     {
         socket = new Socket(host,port);
@@ -55,7 +60,51 @@ public class Agent
         System.out.println(receivedData);
         if(receivedData.indexOf("request-action")!= -1)
         {
-            sendRandomMovement(readActionID()); // TODO until change movement is random
+            String[] goal = searchSurroundings("taskboard");
+            if (goal == null )
+            {
+                sendRandomMovement(readActionID());
+                return;
+            }
+
+            int x = Integer.parseInt(goal[0]);
+            int y = Integer.parseInt(goal[1]);
+
+            if (Math.abs(x) + Math.abs(y) <=2)     //is distance to goal >2
+            {
+                sendAcceptMessage(readActionID(),readTaskID());
+            }
+            else    // movement towards the taskboard
+            {
+                if (Math.abs(x) > Math.abs(y) )
+                {
+                    if(x>0)
+                    {
+                        sendMoveMessage(readActionID(),"e");
+                    }
+                    else
+                    {
+                        sendMoveMessage(readActionID(), "w");
+                    }
+                }
+                else
+                {
+                    if(y>0)
+                    {
+                        sendMoveMessage(readActionID(),"s");
+                    }
+                    else
+                    {
+                        sendMoveMessage(readActionID(), "n");
+                    }
+                }
+            }
+
+
+
+
+
+            //sendRandomMovement(readActionID()); // TODO until change movement is random
         }
 
         //??
@@ -81,8 +130,7 @@ public class Agent
 
         // search for "id"  until the
 
-        int idStart = receivedData.indexOf("id\":");
-        idStart += 4;
+        int idStart = receivedData.indexOf("id\":") + 4;
         int idEnd = receivedData.indexOf(",", idStart);
 
         String action_id = "";
@@ -92,6 +140,27 @@ public class Agent
             //System.out.println(action_id);
         }
         return action_id;
+    }
+
+    private String readTaskID()   // read all the tasks in the percept TODO change!  return first task found and only the ID    need to read deadline and requirements
+    {
+        String taskID = "";
+
+        int tasksStart = receivedData.indexOf("tasks") + 7;     //start searching
+
+        int taskNameStart = receivedData.indexOf("name",tasksStart) + 7;
+
+        int  taskNameEnd = receivedData.indexOf("\"",taskNameStart);
+
+        //to search for the next taskId start from the last name location
+
+        if (tasksStart != -1)
+        {
+            taskID = receivedData.substring(taskNameStart, taskNameEnd);
+            //System.out.println(taskID)
+            return taskID;
+        }
+        return null;
     }
 
     private String[] searchSurroundings(String object) // searches the percept for the object given and returns x and y coordinates
@@ -109,10 +178,10 @@ public class Agent
             int coordsStart= subString.lastIndexOf("{");
 
             int xCoordStart = subString.indexOf("x",coordsStart) + 3;
-            int xCoordEnd = subString.indexOf(",",xCoordStart)-1;
+            int xCoordEnd = subString.indexOf(",",xCoordStart);
 
-            int yCoordStart = subString.indexOf("x",coordsStart) + 3;
-            int yCoordEnd = subString.indexOf(",",yCoordStart)-1;
+            int yCoordStart = subString.indexOf("y",coordsStart) + 3;
+            int yCoordEnd = subString.indexOf(",",yCoordStart);
 
             String xCoordString = subString.substring(xCoordStart,xCoordEnd);
             String yCoordString = subString.substring(yCoordStart,yCoordEnd);
@@ -121,11 +190,19 @@ public class Agent
             returnString[0] = xCoordString;
             returnString[1] = yCoordString;
 
+            System.out.println(xCoordString + "  " + yCoordString);
+
             return returnString;
 
         }
         return null;
     }
+
+    private String searchTaskName()
+    {
+        return null;
+    }
+
 
 
 
