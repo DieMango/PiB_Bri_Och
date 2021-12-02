@@ -1,0 +1,24 @@
+Milsetone 3 Submit single-block tasks
+
+Submitting single-block tasks
+  
+  Blocks
+  -Grabbing (needed) blocks with an agent
+    ->finding blocks
+    ->grabbing blocks
+  
+  Goals
+  -Finding and reaching goal-zones
+    ->agents submitting (valid) tasks
+
+
+Mapknowlegde
+-Agents can store positions of PointsOfInterest relative to their position
+  ->Storing positions of important entities
+ ->agents can move to any stored location
+    
+Improving Movement:    
+-Improving movement function
+-Agents block each other at the Taskblocks, they need to go after accepting a task
+  -improve movement towards tasks when the path is obstructed
+  
