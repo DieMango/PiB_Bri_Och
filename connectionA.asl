@@ -2,29 +2,45 @@
 
 /* Initial beliefs and rules */
 
-personalPosition(0,0,0).	
-globalPosition(_,_,_). // global position will be centered around agent1 personal start point
+currentPosition(0,0).		// current position based on personal starting position
+globalPosition(0,0). // global position will be centered around agent1 personal start point
+
+taskAccepted(false).
+wantToMove(true).
+
 /* Initial goals */
 
-!start.
-
-!moveTowards.
-
+!randomMovement.
 /* Plans */
 
-+!start : true <- 
-	.print("hello massim world.").
 
-+step(X) : true <-
-	.print("Received step percept.").
-	
-+actionID(X) : true <- 
-		.random(["n","e","s","w"],Direction);
-		move(Direction).
++!randomMovement : canSendAction(true) <-
+	.random(["n","e","s","w"],Direction);
+	move(Direction);
+	//.abolish(canSendAction);
+	!randomMovement.
++!randomMovement <- !randomMovement.
 
 +thing(X,Y,taskboard,_) : true <-
-	.print("Found taskboard! at:",X,":",Y).
+	.print("Found taskboard! at:",X,":",Y);
+	!moveTowards(X,Y);
+	succed_goal(randomMovement).
+	
++actionID(X) : true <-
+	+canSendAction(true).
 	
 	
++!moveTowards(X,Y) : taskAccepted(false) & canSendAction(true) <- 
+	//.abolish(canSendAction);	
+	move("n").
+	
++!moveTowards(X,Y) <- !moveTowards(X,Y).
+	
+	
+/*
++lastActionParams(X) : lastAction(move) & lastActionResult(success) <-
+	.print(X[0]);
+	.abolish(wantToMove(_)). */
+
 
 		
