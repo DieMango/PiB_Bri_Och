@@ -2,37 +2,31 @@
 
 /* Initial beliefs and rules */
 
-currentPosition(0,0).		// current position based on personal starting position
-globalPosition(0,0). // global position will be centered around agent1 personal start point
+personalPosition(0,0,0).	
+globalPosition(_,_,_). // global position will be centered around agent1 personal start point
 
-currentMoveGoal(0,0).
-
-wantToMove(true).
-
+taskAccepted (false).
 /* Initial goals */
 
-!start.
-
-!moveTowards.
+!randomMovement.
 
 /* Plans */
 
-+!start : true <- 
-	.print("hello massim world.").
-
-/*+step(X) : true <-
-	.print("Received step percept.").*/
++actionID(X) : true <- 
+	!randomMovement.
 	
-+actionID(X) : wantToMove(true) <- 
++!randomMovement : true <-	
 		.random(["n","e","s","w"],Direction);
 		move(Direction).
 
 +thing(X,Y,taskboard,_) : true <-
 	.print("Found taskboard! at:",X,":",Y).
+	/*!moveTowards(X,Y); 
+	succeed_goal(randomMovement). */
 	
-+lastActionParams(X) : lastAction(move) & lastActionResult(success) <-
-	.print(X[0]);
-	.abolish(wantToMove(_)).
-
++!moveTowards(X,Y) : not taskAccepted  <- 
+	skip;
+	!moveTowards(X,Y). 
+	
 
 		
