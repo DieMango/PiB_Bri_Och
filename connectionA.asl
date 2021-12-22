@@ -2,64 +2,84 @@
 
 /* Initial beliefs and rules */
 
-currentPosition(0,0).		// current position based on personal starting position
+currentPosition(0,0).	// current position based on personal starting position
 globalPosition(0,0). // global position will be centered around agent1 personal start point
 
+lastDirection("w").
 taskAccepted(false).
-wantToMove(true).
+path("").
+
+pathgoal("").
 
 /* Initial goals */
 
 !randomMovement.
+
 /* Plans */
 
 
-+!randomMovement : canSendAction(true) <-
-	.random(["n","e","s","w"],Direction);
-	move(Direction);
-	.abolish(canSendAction);
-	!randomMovement.
++!randomMovement : path("")  & pathgoal("")<-		// chose a random destination inside of the percept range
+	.random([[0,5],[5,0],[0,-5],[-5,0]],Direction);
+	.nth(0,Direction,X);
+	.nth(1,Direction,Y);
+	!moveTowards(X,Y).
 +!randomMovement <- !randomMovement.
 
-+thing(X,Y,taskboard,_) : true <-
++thing(X,Y,taskboard,_) : not pathgoal("taskboard") <-
 	if (taskAccepted(false) )
 	{
+		-+pathgoal("taskboard");
+		-+path("");
 		!moveTowards(X,Y);
-		.suspend(randomMovement);
+		!reducePathBy(2);
+		
+		.print ("move to Taskboard");
+		
 	}
 	.print("Found taskboard! at:",X,":",Y).
+
++actionID(X) : not path("") <-						// move in the rythm of the server
+	?path(MovePath);
+	.nth(0,MovePath,Direction);
+	.delete(0,MovePath,P);
+	-+path(P);
+	move(Direction).
++actionID(X) : path("") & pathgoal("taskboard")<-
+	//move("s");
+	move("").
+	//.print("near Taskboard").
 	
-+actionID(X) : true <-
-	+canSendAction(true).
++path("") : pathgoal("") <-
+	!randomMovement.
+
+
++!moveTowards(X,Y) : true <- 		// create a list of Movements towards a certain destination
+	lib.findPath(X,Y,Path);	//findPath java method returns a string of Directions to follow
+	.term2string(Path,P);
+	-+path(P).
 	
-	
-+!moveTowards(X,Y) : canSendAction(true) <- 
-	if((( ((0<= Y)&(Y<= X)) | (((X<= Y)&(Y<= 0)))) | ((0<= Y)&(Y<= -X)) | (((-X<= Y)&(Y<= 0)))) )
-	{	
-		if(X>0){move("e");}
-		elif(X<0){move("w");}
-		else{skip;}
-	}
-	elif(((((0<= X)&(X< Y)) | ((0 >=X)&(X> Y))) | ((0<= X)&(X< -Y)) | ((0 >=X)&(X> -Y))))
-	{	
-		if(Y>0){move("s");}
-		elif(Y<0){move("n");}
-		else{skip;}
++!moveTowards(X,Y) <- !moveTowards(X,Y).
+-!moveTowards(X,Y) <-
+	.print("this failed?").
+
+
++!reducePathBy(X) : true <-
+	?path(P);
+	.print("before:  ",P);
+	.reverse(P,R);	// Reverse P into R to ignore any length of the path
+	.length(P,L);
+	if(X >= L)
+	{
+		-+path("");
 	}
 	else
 	{
-		.print(" move failed",X,Y);
-		skip;
-	}
-	.abolish(canSendAction).
+		.delete(0,X,R,A);
+		.reverse(A,B);	//Reverse again
+		-+path(B);
+		.print("after:  ",B);
+	}.
 	
-+!moveTowards(X,Y) <- !moveTowards(X,Y).
-	
-	
-/*
-+lastActionParams(X) : lastAction(move) & lastActionResult(success) <-
-	.print(X[0]);
-	.abolish(wantToMove(_)). */
 
-
++!reducePathBy(X) <- !reducePathBy(X).
 		
