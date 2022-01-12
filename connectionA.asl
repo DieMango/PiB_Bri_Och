@@ -7,6 +7,7 @@ globalPosition(0,0). // global position will be centered around agent1 personal 
 
 lastDirection("w").
 taskAccepted(false).
+searchFor("taskboard").
 path("").
 
 pathgoal("").
@@ -18,29 +19,31 @@ pathgoal("").
 /* Plans */
 
 
-+!randomMovement : path("")  & pathgoal("")<-		// chose a random destination inside of the percept range
++!randomMovement : true<-		// chose a random destination inside of the percept range
 	.random([[0,5],[5,0],[0,-5],[-5,0]],Direction);
 	.nth(0,Direction,X);
 	.nth(1,Direction,Y);
 	!moveTowards(X,Y).
 +!randomMovement <- !randomMovement.
 
-+thing(X,Y,taskboard,_) : not pathgoal("taskboard") <-
++thing(X,Y,taskboard,_) : searchFor("taskboard") <-
+	-+searchFor("");
 	.print("Found taskboard! at:",X,":",Y);
-	.drop_intention(delayMovement);	//drop Intention and suspend intention to stop the Agent from moving in a random direction
 	.suspend(delayMovement);
-	if (taskAccepted(false) )
-	{
-		-+pathgoal("taskboard");
-		-+path("");
-		!moveTowards(X,Y);
-		!reducePathBy(2);
-		
-		.print ("move to Taskboard");
-	}
-	.resume(delayMovement);		//resume Movement Intention
-	!delayMovement.
-	
+
+	-+path("");
+	!moveTowards(X,Y);
+	!reducePathBy(2);
+	-+pathgoal("taskboard");
+	.print ("move to Taskboard");
+
+	.resume(delayMovement).		//resume Movement Intention
+
+
++thing(X,Y,dispenser,b0) : searchFor("dispenser_b0") <-	
+	.print("hi").
++thing(X,Y,dispenser,b1) : searchFor("dispenser_b1") <-
+	.print("hi").
 
 +actionID(X) : true <-			// restart the Moement Goal with every "beat" send by the server
 	!delayMovement.				// instead of instantly moving, give the Agent time to react to surroundings and calculate the next moves
@@ -48,19 +51,55 @@ pathgoal("").
 +path("") : pathgoal("") <-		 //no path and no current goal ---> restart randomMovement
 	!randomMovement.
 
++path("") : pathgoal("taskboard") <-	//TODO
+	.print("reached board");
+	!acceptTask.
+	
+
++!acceptTask : true <-
+	//.count(task(_,_,_,_),T);
+	//if(T==0){move("");}
+	//else
+	{
+		.print("even before");
+		//?task(T,_,_,Requirements);
+		.findall(T,task(T,_,_,_),L);
+		.random(L,Peep);
+		.print(Peep);
+		.print("before");
+		//accept(T);
+		accept("task5");
+		.print("after");
+		-+pathgoal("");
+		-+taskAccepted(true);
+		//.print(Requirements);
+		//.term2string(Requirements,TEMP1);
+		//.substring("b0","b0",TEMP2);
+		if(true){-+searchFor("dispenser_b0");}
+		else{-+searchFor("dispenser_b1");}
+		!randomMovement;
+		?searchFor(X);
+		.print(X);
+	}.
+	
+	
++!acceptTask <- !acceptTask.
+-!acceptTask <-
+	.print("failed accept Task");
+	move("");
+	!acceptTask.
+	
+
 +!delayMovement : not (path("")) <-						// move in the rythm of the server
-	?path(MovePath);
+	?path(MovePath); 
 	.nth(0,MovePath,Direction);
 	.delete(0,MovePath,P);
-	-+path(P);
-	move(Direction).
+	move(Direction);
+	-+path(P).
 	
-+!delayMovement  : path("") & pathgoal("taskboard")<-	//TODO
-	//move("s");
-	move("").
-	//.print("near Taskboard").	
+
 	
-+!delayMovement <- !delayMovement.
++!delayMovement <- .print("").
 -!delayMovement <- !delayMovement.
 
 +!moveTowards(X,Y) : true <- 		// create a list of Movements towards a certain destination
@@ -75,20 +114,17 @@ pathgoal("").
 
 +!reducePathBy(X) : true <-		//instead of going directly to a given spot, stop X steps before to be able to interact with something
 	?path(P);
-	.print("before:  ",P);
 	.reverse(P,R);	// Reverse P into R to ignore any length of the path
 	.length(P,L);
 	if(X >= L)
 	{
 		-+path("");
-		.print("after:  empty");
 	}
 	else
 	{
 		.delete(0,X,R,A);
 		.reverse(A,B);	//Reverse again
 		-+path(B);
-		.print("after:  ",B);
 	}.
 	
 
