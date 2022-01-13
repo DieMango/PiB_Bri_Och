@@ -1,0 +1,27 @@
+Getting the new server running
+with the new coordinate system implement a usefull movement algrithm like A* as java function
+
+getting the ?task(_,_,_,_) to work properly
+
+Mapknowlegde
+-Agents can store positions of PointsOfInterest (POIs) (relative to their position)
+  ->Storing positions of important entities
+ ->agents can move to any stored location
+ 
+Mulitle types of agents (coordinator, worker scout)
+  coordinator 
+    stores map knowledge and gives it to other agents when requested
+    keeps track of tasks:
+      deadlines, status of tasks, limits number of agents with the same task
+  
+  worker
+    doing tasks
+  scout
+    discovering the map, when fully discovered switch to worker
+
+Milestone 5
+  submitting multi-block tasks
+
+
+ 
+ 
