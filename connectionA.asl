@@ -11,7 +11,8 @@ searchFor("taskboard").
 path("").
 currentIntention("move").
 pathgoal("").
-
+currentStep(0).
+vl(0).
 /* Initial goals */
 
 !randomMovement.
@@ -86,7 +87,8 @@ pathgoal("").
 
 	.resume(delayMovement).		//resume Movement Intention	
 	
-
++step(X) : true <- -+currentStep(X).
+	
 +actionID(X) : currentIntention("request") <-	!requestBlock.		// restart the Moement Goal with every "beat" send by the server
 +actionID(X) : currentIntention("attach") <-	!attachBlock.
 +actionID(X) : currentIntention("accept") <-	!acceptTask.
@@ -94,6 +96,11 @@ pathgoal("").
 +actionID(X) : currentIntention("submit") <-	!submit.
 // instead of instantly moving, give the Agent time to react to surroundings and calculate the next moves
 	
++task(TaskID,Deadline,X,[req(XB,YB,D)]) : true <- 
+	?currentStep(Step);
+	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,D)])}.
+	
+
 
 +path("") : pathgoal("") <-		 //no path and no current goal ---> restart randomMovement
 	!randomMovement.
@@ -127,39 +134,30 @@ pathgoal("").
 	
 
 +!acceptTask : true <-
-	//.count(task(_,_,_,_),T);
-	//if(T==0){move("");}
-	//else
-	{
-		.print("even before");
-		//?task(TaskID,Deadline,Y,Requirements);
-		.findall(T,task(T,_,_,_),L);
-		.random(L,TaskID);
-		.print(TaskID);
-		.print("before");
-		//accept(T);
-		-+taskID(TaskID);
-		accept(TaskID);
-		.print("after");
-		-+pathgoal("");
-		-+taskAccepted(true);
-		//.print(Requirements);
-		//.term2string(Requirements,TEMP1);
-		//.substring("b0","b0",TEMP2);
-		if(true){-+searchFor("dispenser_b0");}
-		else{-+searchFor("dispenser_b1");}
-		!randomMovement;
-		-+currentIntention("move");
-		?searchFor(X);
-		.print(X);
-	}.
+		?currentStep(Step);
+		?currentTasks(TaskID,Deadline,Y,[req(XB,YB,D)]);
+		.abolish(currentTasks(TaskID,_,_,_));
+		if(Deadline<(Step+50)){!acceptTask}
+		else
+		{
+			-+taskID(TaskID);
+			accept(TaskID);
+			-+pathgoal("");
+			-+taskAccepted(true);
+			//.print(Requirements);
+			if(.substring("b0",D)){-+searchFor("dispenser_b0");}
+			else{-+searchFor("dispenser_b1");}
+			!randomMovement;
+			-+currentIntention("move");
+			?searchFor(X);
+			.print(X)
+		}.
 	
 	
 +!acceptTask <- !acceptTask.
 -!acceptTask <-
 	.print("failed accept Task");
-	move("");
-	!acceptTask.
+	skip.
 	
 
 +!delayMovement : not (path("")) <-						// move in the rythm of the server
