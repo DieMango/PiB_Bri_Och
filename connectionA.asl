@@ -27,7 +27,8 @@ vl(0).
 	!moveTowards(X,Y).
 +!randomMovement <- !randomMovement.
 
-
++position(X,Y) :true <-
+	-+currentPosition(X,Y).
 
 +thing(X,Y,taskboard,_) : searchFor("taskboard") <-
 	-+searchFor("");
@@ -165,11 +166,6 @@ vl(0).
 	.nth(0,MovePath,Direction);
 	.delete(0,MovePath,P);
 	move(Direction);
-	?currentPosition(X,Y);
-	if(Direction = "n"){-+currentPosition(X,Y-1)};
-	if(Direction = "e"){-+currentPosition(X+1,Y)};
-	if(Direction = "s"){-+currentPosition(X,Y+1)};
-	if(Direction = "w"){-+currentPosition(X-1,Y)};
 	-+lastDirection(Direction);
 	-+path(P).
 	
