@@ -3,22 +3,16 @@
 /* Initial beliefs and rules */
 
 currentPosition(0,0).	// current position based on personal starting position
+globalPosition(0,0). // global position will be centered around agent1 personal start point
 
 lastDirection("w").
+taskAccepted(false).
 searchFor("taskboard").
 path("").
-pathgoal("").
 currentIntention("move").
+pathgoal("").
 currentStep(0).
 vl(0).
-
-/*	belief get generated when found
-b0().		
-b1().
-taskboard().
-goal().
-*/
-
 /* Initial goals */
 
 !randomMovement.
@@ -33,66 +27,82 @@ goal().
 	!moveTowards(X,Y).
 +!randomMovement <- !randomMovement.
 
-
-+!updateSurroundings :true <-
-	?currentPosition(X,Y);
-	for(thing(TX,TY,taskboard,_))
-	{
-		+taskboard(TX+X,TY+Y);
-	};
-	for(thing(D0X,D0Y,dispenser,bo))
-	{
-		+b0(D0X+X,D0Y+Y);
-	};
-	for(thing(D1X,D1Y,dispenser,b1))
-	{
-		+b1(D1X+X,D1Y+Y);
-	};
-	for(goal(GX,GY))
-	{
-		+goals(GX+X,GY+Y);
-	};
-	.abolish(thing(_,_,_,_));
-	.abolish(goal(_,_)).
-	
-
-+thing(A,B,C,D) :true <- +thing(A,B,C,D).	//write percepts into belief system ,which get put into the "map" after updating the currentPosition
-+goal(X,Y) : true <- +goal(X,Y).
 +position(X,Y) :true <-
-	-+currentPosition(X,Y);
-	!updateSurroundings.
+	-+currentPosition(X,Y).
 
-+taskboard(_,_) : true <-		//current first goal to be able to accept a task
-	!findTaskboard.
-
-+!findTaskboard : taskboard(X,Y) <-
++thing(X,Y,taskboard,_) : searchFor("taskboard") <-
 	-+searchFor("");
 	.print("Found taskboard! at:",X,":",Y);
 	.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
 	-+pathgoal("taskboard");
-	?currentPosition(PX,PY);
-	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!moveTowards(X,Y);
 	!reducePathBy(2);
-	.print ("move to taskboard");
-	.resume(delayMovement).		//resume Movement Intention
--!findTaskboard <-
-	.print("find failed").
+	
+	.print ("move to Taskboard");
 
+	.resume(delayMovement).		//resume Movement Intention
+
++thing(X,Y,dispenser,b0) : ~searchFor("dispenser_b0") <-	
+	?currentPosition(X).
+
++thing(X,Y,dispenser,b0) : searchFor("dispenser_b0") <-	
+	-+searchFor("");
+	.print("Found dispenser_b0! at:",X,":",Y);
+	.suspend(delayMovement);
+	-+pathgoal("temp");
+	-+path("");
+	-+pathgoal("dispenser_b0");
+	!moveTowards(X,Y);
+	!reducePathBy(1);
+	
+	.print ("move to dispenser");
+
+	.resume(delayMovement).		//resume Movement Intention
+
++thing(X,Y,dispenser,b1) : searchFor("dispenser_b1") <-
+	-+searchFor("");
+	.print("Found dispenser_b1! at:",X,":",Y);
+	.suspend(delayMovement);
+	-+pathgoal("temp");
+	-+path("");
+	-+pathgoal("dispenser_b1");
+	!moveTowards(X,Y);
+	!reducePathBy(1);
+	.print ("move to dispenser");
+
+	.resume(delayMovement).		//resume Movement Intention
+
++goal(X,Y) : searchFor("goalZone") <-	
+	-+searchFor("");
+	.print("Found goalZone! at:",X,":",Y);
+	.suspend(delayMovement);
+	-+pathgoal("temp");
+	-+path("");
+	-+pathgoal("goalZone");
+	!moveTowards(X,Y);
+	//!reducePathBy(0);
+	
+	.print ("move to dispenser");
+
+	.resume(delayMovement).		//resume Movement Intention	
+	
 +step(X) : true <- -+currentStep(X).
 	
 +actionID(X) : currentIntention("request") <-	!requestBlock.		// restart the Moement Goal with every "beat" send by the server
 +actionID(X) : currentIntention("attach") <-	!attachBlock.
 +actionID(X) : currentIntention("accept") <-	!acceptTask.
-+actionID(X) : currentIntention("move") <-		!delayMovement.		// instead of instantly moving, give the Agent time to react to surroundings and calculate the next moves
++actionID(X) : currentIntention("move") <-		!delayMovement.
 +actionID(X) : currentIntention("submit") <-	!submit.
-
+// instead of instantly moving, give the Agent time to react to surroundings and calculate the next moves
 	
 +task(TaskID,Deadline,X,[req(XB,YB,D)]) : true <- 
 	?currentStep(Step);
 	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,D)])}.
 	
+
+
 +path("") : pathgoal("") <-		 //no path and no current goal ---> restart randomMovement
 	!randomMovement.
 
