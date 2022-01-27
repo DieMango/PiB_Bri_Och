@@ -2,6 +2,9 @@ Delete outdated tasks
   agents should´nt accept tasks with less than 50 steps till deadline
   agents should delete already submitted tasks
 
+Submitting blocks in the right direction
+  rotating the other way if agent gets stuck
+
 
 Mapknowlegde
 -Agents can store positions of PointsOfInterest (POIs) (relative to their position)
