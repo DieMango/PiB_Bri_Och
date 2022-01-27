@@ -13,20 +13,21 @@ currentStep(0).
 vl(0).
 
 /*	belief get generated when found
-b0().		
-b1().
+dispenser().
 taskboard().
-goal().
+goals().
+obstacle().
 */
 
 /* Initial goals */
 
+!findTaskboard.
 //!randomMovement.
 
 /* Plans */
 
 
-+!randomMovement : true<-		// chose a random destination inside of the percept range
++!randomMovement : path("")<-		// chose a random destination inside of the percept range
 	.random([[0,5],[5,0],[0,-5],[-5,0]],Direction);
 	.nth(0,Direction,X);
 	.nth(1,Direction,Y);
@@ -40,35 +41,39 @@ goal().
 		+taskboard(TX+X,TY+Y);
 		.broadcast(tell,taskboard(TX+X,TY+Y));
 	};
-	for(thing(D0X,D0Y,dispenser,bo))
+	for(thing(D0X,D0Y,dispenser,b0))
 	{
-		+b0(D0X+X,D0Y+Y);
+		+dispenser(D0X+X,D0Y+Y,"b0");
+		.broadcast(tell,dispenser(D0X+X,D0Y+Y,"b0"));
 	};
 	for(thing(D1X,D1Y,dispenser,b1))
 	{
-		+b1(D1X+X,D1Y+Y);
+		+dispenser(D1X+X,D1Y+Y,"b1");
+		.broadcast(tell,dispenser(D1X+X,D1Y+Y,"b1"));
 	};
 	for(goal(GX,GY))
 	{
 		+goals(GX+X,GY+Y);
+		.broadcast(tell,goals(GX+X,GY+Y));
 	};
+	/*for(obstacle(OX,OY))
+	{
+		+obstacles(OX+X,OY+Y);
+	};*/
 	.abolish(thing(_,_,_,_));
-	.abolish(goal(_,_)).
+	.abolish(goal(_,_));
+	.abolish(obstacle(_,_)).
 	
 
 +thing(A,B,C,D) :true <- +thing(A,B,C,D).	//write percepts into belief system ,which get put into the "map" after updating the currentPosition
 +goal(X,Y) : true <- +goal(X,Y).
++obstalce(X,Y) :true <- +obstalce(X,Y).
 +position(X,Y) :true <-
 	-+currentPosition(X,Y);
 	!updateSurroundings.
 
-+taskboard(X,Y) : true <-		//current first goal to be able to accept a task
-	!findTaskboard.
-
 +!findTaskboard : taskboard(X,Y) <-
 	.drop_intention(randomMovement);
-	-+searchFor("");
-	.print("Found taskboard! at:",X,":",Y);
 	.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
@@ -76,23 +81,66 @@ goal().
 	?currentPosition(PX,PY);
 	.abolish(moveTowards(_,_));
 	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
-	//!reducePathBy(2);
-	.print(PX," ",X,"   ",PY," ",Y);
-	?path(A);
-	.print(A);
-	.print ("move to taskboard");
+	!reducePathBy(2);
 	.resume(delayMovement).		//resume Movement Intention
++!findTaskboard <- !findTaskboard.
 -!findTaskboard <-
-	.print("find failed").
+	.print("find Taskboardfailed").
+	
++!findDispenser_1 : dispenser(X,Y,"b1") <-
+	.drop_intention(randomMovement);
+	.suspend(delayMovement);
+	-+pathgoal("temp");
+	-+path("");
+	-+pathgoal("dispenser");
+	?currentPosition(PX,PY);
+	.abolish(moveTowards(_,_));
+	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!reducePathBy(1);
+	.resume(delayMovement).		//resume Movement Intention
+-!findDispenser_1 <-
+	.print("find Dispenser1 failed").
+
++!findDispenser_0 : dispenser(X,Y,"b0") <-
+	.drop_intention(randomMovement);
+	.suspend(delayMovement);
+	-+pathgoal("temp");
+	-+path("");
+	-+pathgoal("dispenser");
+	?currentPosition(PX,PY);
+	.abolish(moveTowards(_,_));
+	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!reducePathBy(1);
+	.resume(delayMovement).		//resume Movement Intention
+-!findDispenser_0 <-
+	.print("find Dispenser0 failed").	
+	
+
++!findGoalzone : goals(X,Y) <-
+	.drop_intention(randomMovement);
+	.suspend(delayMovement);
+	-+pathgoal("temp");
+	-+path("");
+	-+pathgoal("goalZone");
+	?currentPosition(PX,PY);
+	.abolish(moveTowards(_,_));
+	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	//!reducePathBy(1);
+	.resume(delayMovement).		//resume Movement Intention
+-!findGoalzone <-
+	.print("find Goalzone failed").	
+	
 
 +step(X) : true <- -+currentStep(X).
 	
 +actionID(X) : currentIntention("request") <-	!requestBlock.		// restart the Moement Goal with every "beat" send by the server
 +actionID(X) : currentIntention("attach") <-	!attachBlock.
-+actionID(X) : currentIntention("accept") <-	skip.//!acceptTask.
++actionID(X) : currentIntention("accept") <-	!acceptTask.
 +actionID(X) : currentIntention("move") <-		!delayMovement.		// instead of instantly moving, give the Agent time to react to surroundings and calculate the next moves
 +actionID(X) : currentIntention("submit") <-	!submit.
 
++lastActionResult(failed) :true <- 
+	.print("last action failed").
 	
 +task(TaskID,Deadline,X,[req(XB,YB,D)]) : true <- 
 	?currentStep(Step);
@@ -107,12 +155,7 @@ goal().
 	.print("reached board");
 	-+currentIntention("accept").
 	
-+path("") : pathgoal("dispenser_b0") <-	//TODO
-	-+pathgoal("");
-	.print("reached dispenser");
-	-+currentIntention("request").
-	
-+path("") : pathgoal("dispenser_b1") <-	//TODO
++path("") : pathgoal("dispenser") <-	//TODO
 	-+pathgoal("");
 	.print("reached dispenser");
 	-+currentIntention("request").
@@ -133,27 +176,27 @@ goal().
 +!acceptTask : true <-
 		?currentStep(Step);
 		?currentTasks(TaskID,Deadline,Y,[req(XB,YB,D)]);
-		.abolish(currentTasks(TaskID,_,_,_));
-		if(Deadline<(Step+50)){!acceptTask}
+		.abolish(currentTasks(TaskID,_,_,_));		
+		if(Deadline<(Step+50) | acceptedTask(TaskID) ){!acceptTask}
 		else
 		{
 			-+taskID(TaskID);
 			accept(TaskID);
+			.broadcast(tell,acceptedTask(TaskID));
 			-+pathgoal("");
 			-+taskAccepted(true);
 			//.print(Requirements);
-			if(.substring("b0",D)){-+searchFor("dispenser_b0");}
-			else{-+searchFor("dispenser_b1");}
-			!randomMovement;
+			if(.substring("b0",D)){!findDispenser_0;}
+			else{!findDispenser_1;}
 			-+currentIntention("move");
-			?searchFor(X);
-			.print(X)
 		}.
 	
 	
 +!acceptTask <- !acceptTask.
 -!acceptTask <-
 	.print("failed accept Task");
+	-+currentIntention("move");
+	!findTaskboard;
 	skip.
 	
 
@@ -213,8 +256,7 @@ goal().
 	attach(Direction);
 	.print("grabbed block!");
 	-+currentIntention("move");
-	!randomMovement;
-	-+searchFor("goalZone").
+	!findGoalzone.
 	
 	
 +!submit : grabDirection("n") <-	rotate("cw");	-+grabDirection("e").
@@ -223,5 +265,11 @@ goal().
 	
 +!submit : grabDirection("s") <-
 	?taskID(TaskID);
-	submit(TaskID).
+	submit(TaskID);
+	
+	
+	-taskID;
+	-+currentIntention("move");
+	!findTaskboard;
+	-taskAccepted.
 	

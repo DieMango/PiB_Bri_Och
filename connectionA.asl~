@@ -21,7 +21,7 @@ goal().
 
 /* Initial goals */
 
-!randomMovement.
+//!randomMovement.
 
 /* Plans */
 
@@ -30,15 +30,15 @@ goal().
 	.random([[0,5],[5,0],[0,-5],[-5,0]],Direction);
 	.nth(0,Direction,X);
 	.nth(1,Direction,Y);
+	.abolish(moveTowards(_,_));
 	!moveTowards(X,Y).
 +!randomMovement <- !randomMovement.
-
-
 +!updateSurroundings :true <-
 	?currentPosition(X,Y);
 	for(thing(TX,TY,taskboard,_))
 	{
 		+taskboard(TX+X,TY+Y);
+		.broadcast(tell,taskboard(TX+X,TY+Y));
 	};
 	for(thing(D0X,D0Y,dispenser,bo))
 	{
@@ -62,10 +62,11 @@ goal().
 	-+currentPosition(X,Y);
 	!updateSurroundings.
 
-+taskboard(_,_) : true <-		//current first goal to be able to accept a task
++taskboard(X,Y) : true <-		//current first goal to be able to accept a task
 	!findTaskboard.
 
 +!findTaskboard : taskboard(X,Y) <-
+	.drop_intention(randomMovement);
 	-+searchFor("");
 	.print("Found taskboard! at:",X,":",Y);
 	.suspend(delayMovement);
@@ -73,8 +74,12 @@ goal().
 	-+path("");
 	-+pathgoal("taskboard");
 	?currentPosition(PX,PY);
+	.abolish(moveTowards(_,_));
 	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
-	!reducePathBy(2);
+	//!reducePathBy(2);
+	.print(PX," ",X,"   ",PY," ",Y);
+	?path(A);
+	.print(A);
 	.print ("move to taskboard");
 	.resume(delayMovement).		//resume Movement Intention
 -!findTaskboard <-
@@ -84,7 +89,7 @@ goal().
 	
 +actionID(X) : currentIntention("request") <-	!requestBlock.		// restart the Moement Goal with every "beat" send by the server
 +actionID(X) : currentIntention("attach") <-	!attachBlock.
-+actionID(X) : currentIntention("accept") <-	!acceptTask.
++actionID(X) : currentIntention("accept") <-	skip.//!acceptTask.
 +actionID(X) : currentIntention("move") <-		!delayMovement.		// instead of instantly moving, give the Agent time to react to surroundings and calculate the next moves
 +actionID(X) : currentIntention("submit") <-	!submit.
 
@@ -94,6 +99,7 @@ goal().
 	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,D)])}.
 	
 +path("") : pathgoal("") <-		 //no path and no current goal ---> restart randomMovement
+	.print("finished my Movement.. Restart");
 	!randomMovement.
 
 +path("") : pathgoal("taskboard") <-	//TODO
@@ -168,6 +174,7 @@ goal().
 +!moveTowards(X,Y) : true <- 		// create a list of Movements towards a certain destination
 	lib.findPath(X,Y,Path);	//findPath java method returns a string of Directions to follow
 	.term2string(Path,P);
+	.print("in MT ",P);
 	-+path(P).
 	
 +!moveTowards(X,Y) <- !moveTowards(X,Y).
