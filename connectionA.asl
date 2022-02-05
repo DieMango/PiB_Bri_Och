@@ -11,6 +11,11 @@ pathgoal("").
 currentIntention("move").
 currentStep(0).
 vl(0).
+//secondBlock().
+//currentPartner().
+//isSupport().
+
+//bestPartner().
 
 /*	belief get generated when found
 dispenser().
@@ -67,7 +72,7 @@ obstacle().
 
 +thing(A,B,C,D) :true <- +thing(A,B,C,D).	//write percepts into belief system ,which get put into the "map" after updating the currentPosition
 +goal(X,Y) : true <- +goal(X,Y).
-+obstalce(X,Y) :true <- +obstalce(X,Y).
++obstacle(X,Y) :true <- +obstacle(X,Y).
 +position(X,Y) :true <-
 	-+currentPosition(X,Y);
 	!updateSurroundings.
@@ -138,6 +143,7 @@ obstacle().
 +actionID(X) : currentIntention("accept") <-	!acceptTask.
 +actionID(X) : currentIntention("move") <-		!delayMovement.		// instead of instantly moving, give the Agent time to react to surroundings and calculate the next moves
 +actionID(X) : currentIntention("submit") <-	!submit.
++actionID(X) : currentIntention("choosePartner") <-	!choosePartner.
 
 +lastActionResult(failed) :true <- 
 	.print("last action failed").
@@ -145,7 +151,9 @@ obstacle().
 +task(TaskID,Deadline,X,[req(XB,YB,D)]) : true <- 
 	?currentStep(Step);
 	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,D)])}.
-	
++task(TaskID,Deadline,X,[req(XB,YB,RB),req(XA,YA,RA)]) : true <-
+	?currentStep(Step);
+	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,RB),req(XA,YA,RA)])}.
 +path("") : pathgoal("") <-		 //no path and no current goal ---> restart randomMovement
 	.print("finished my Movement.. Restart");
 	!randomMovement.
@@ -175,7 +183,8 @@ obstacle().
 
 +!acceptTask : true <-
 		?currentStep(Step);
-		?currentTasks(TaskID,Deadline,Y,[req(XB,YB,D)]);
+		//?currentTasks(TaskID,Deadline,Y,[req(XB,YB,RB)]);	//1- Block tasks
+		?currentTasks(TaskID,Deadline,Y,[req(XB,YB,RB),req(XA,YA,RA)]);	//2-Block Tasks
 		.abolish(currentTasks(TaskID,_,_,_));		
 		if(Deadline<(Step+50) | acceptedTask(TaskID) ){!acceptTask}
 		else
@@ -185,10 +194,15 @@ obstacle().
 			.broadcast(tell,acceptedTask(TaskID));
 			-+pathgoal("");
 			-+taskAccepted(true);
-			//.print(Requirements);
-			if(.substring("b0",D)){!findDispenser_0;}
+			-+secondBlock(XA,YA,RA); // 2-Block tasks only
+			if(.substring("b0",RB)){!findDispenser_0;}
 			else{!findDispenser_1;}
-			-+currentIntention("move");
+			//-+currentIntention("move");	//only for 1-Block Tasks
+			//Start search for Partern for 2-Block tasks
+			.my_name(MyName);
+			.print("looking for a DancePartner");
+			.broadcast(achieve,partnersearch(MyName));
+			-+currentIntention("choosePartner");
 		}.
 	
 	
@@ -199,7 +213,56 @@ obstacle().
 	!findTaskboard;
 	skip.
 	
++!partnersearch(AgentName) : true <-
+	.print(AgentName,"wants help");
+	?currentPosition(X,Y);
+	.my_name(MyName);
+	if(taskAccepted)
+	{
+	.print(MyName ,"I am busy");
+	}
+	else
+	{
+		.send(AgentName,achieve,partnerResponse(MyName,X,Y));
+	}.
+	
+-!partnersearch(AgentName) :true <-
+	.print(AgentName,"failed again").
 
++!partnerResponse(AgentName,X,Y) : true <-
+	if(bestPartner)
+	{
+		?bestPartner(PName,PX,PY);
+		?currentPosition(MyX,MyY);
+		lib.findBestPartner(MyX,MyY,PX,PY,X,Y,Conclusion);
+		if(Conclusion == "new")
+		{
+			-+bestPartner(AgentName,X,Y)
+		}
+	}
+	else{-+bestPartner(AgentName,X,Y)}.
+
++!choosePartner : bestPartner(AgentName,X,Y) <-
+	.print(AgentName,", I chose you!");
+	.my_name(MyName);
+	?secondBlock(BX,BY,Block);
+	-+currentPartner(AgentName);
+	-+currentIntention("move");
+	.send(AgentName,achieve,chosenAsSupport(MyName,BX,BY,Block)).
+
++!choosePartner : true <-
+	.print("got no replies").
+	
+	
++!chosenAsSupport(AgentName,X,Y,Block) : true <-
+	-+currentPartner(AgentName);
+	-+isSupport(true);
+	-+taskAccepted(true);
+	if(.substring("b0",Block)){!findDispenser_0;}
+			else{!findDispenser_1;}
+	-+currentIntention("move").
+	
+	
 +!delayMovement : not (path("")) <-						// move in the rythm of the server
 	?path(MovePath); 
 	.nth(0,MovePath,Direction);
@@ -251,12 +314,15 @@ obstacle().
 	.print("requested block!");
 	-+currentIntention("attach").
 	
+	
 +!attachBlock :true <-
 	?grabDirection(Direction);
 	attach(Direction);
 	.print("grabbed block!");
 	-+currentIntention("move");
 	!findGoalzone.
+	
+	
 	
 	
 +!submit : grabDirection("n") <-	rotate("cw");	-+grabDirection("e").
