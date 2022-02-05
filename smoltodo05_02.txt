@@ -1,0 +1,18 @@
+
+todo:
+
+
+function for shortest path to taskboard/ dispenser/ goalzone
+	(like findBestpartner) oder betragsfunktion in java
+
+
+tasks: erst linker dann rechter block
+-> block unter agent mit task immer block 1
+
+connect blocks
+-> after getting their blocks agents move to each other
+	connect blocks
+	move together to goalzone?
+
+movement!
+
