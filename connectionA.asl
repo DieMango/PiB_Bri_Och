@@ -77,59 +77,104 @@ obstacle().
 	-+currentPosition(X,Y);
 	!updateSurroundings.
 
-+!findTaskboard : taskboard(X,Y) <-
++!findTaskboard : taskboard(TX,TY) <-
+	//Find closest of the Item to search
+	?currentPosition(PX,PY);
+	-+closestTaskBoard(TX,TY);
+	.findall(taskboardPos(X,Y),taskboard(X,Y),List);
+	for(.member(i(NewX,NewY),List))
+	{
+		?closestTaskBoard(ClosestX,ClosestY);
+		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
+		if(Conclusion =="new"){-+closestTaskBoard(NewX,NewY)};
+	};
+	?closestTaskBoard(ClosestX,ClosestY);
 	.drop_intention(randomMovement);
 	.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
 	-+pathgoal("taskboard");
-	?currentPosition(PX,PY);
+	
 	.abolish(moveTowards(_,_));
-	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
 	!reducePathBy(2);
 	.resume(delayMovement).		//resume Movement Intention
 +!findTaskboard <- !findTaskboard.
 -!findTaskboard <-
 	.print("find Taskboardfailed").
 	
-+!findDispenser_1 : dispenser(X,Y,"b1") <-
++!findDispenser_1 : dispenser(DX,DY,"b1") <-
+	//Find closest of the Item to search
+	?currentPosition(PX,PY);
+	-+closestDispenser(DX,DY);
+	.findall(dispenserPos(X,Y),dispenser(X,Y,"b1"),List);
+	for(.member(i(NewX,NewY),List))
+	{
+		?closestDispenser(ClosestX,ClosestY);
+		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
+		if(Conclusion =="new"){-+closestDispenser(NewX,NewY)};
+	};
+	?closestDispenser(ClosestX,ClosestY);
+
 	.drop_intention(randomMovement);
 	.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
 	-+pathgoal("dispenser");
-	?currentPosition(PX,PY);
 	.abolish(moveTowards(_,_));
-	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
 	!reducePathBy(1);
 	.resume(delayMovement).		//resume Movement Intention
 -!findDispenser_1 <-
 	.print("find Dispenser1 failed").
 
-+!findDispenser_0 : dispenser(X,Y,"b0") <-
++!findDispenser_0 : dispenser(DX,DY,"b0") <-
+	//Find closest of the Item to search
+	?currentPosition(PX,PY);
+	-+closestDispenser(DX,DY);
+	.findall(dispenserPos(X,Y),dispenser(X,Y,"b1"),List);
+	for(.member(i(NewX,NewY),List))
+	{
+		?closestDispenser(ClosestX,ClosestY);
+		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
+		if(Conclusion =="new"){-+closestDispenser(NewX,NewY)};
+	};
+	?closestDispenser(ClosestX,ClosestY);
+
 	.drop_intention(randomMovement);
 	.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
 	-+pathgoal("dispenser");
-	?currentPosition(PX,PY);
 	.abolish(moveTowards(_,_));
-	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
 	!reducePathBy(1);
 	.resume(delayMovement).		//resume Movement Intention
 -!findDispenser_0 <-
 	.print("find Dispenser0 failed").	
 	
 
-+!findGoalzone : goals(X,Y) <-
++!findGoalzone : goals(GX,GY) <-
+	//Find closest of the Item to search
+	?currentPosition(PX,PY);
+	-+closestGoal(GX,GY);
+	.findall(goalPos(X,Y),goals(X,Y),List);
+	for(.member(i(NewX,NewY),List))
+	{
+		?closestGoal(ClosestX,ClosestY);
+		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
+		if(Conclusion =="new"){-+closestGoal(NewX,NewY)};
+	};
+	?closestGoal(ClosestX,ClosestY);
+
+
 	.drop_intention(randomMovement);
 	.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
 	-+pathgoal("goalZone");
-	?currentPosition(PX,PY);
 	.abolish(moveTowards(_,_));
-	!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
 	//!reducePathBy(1);
 	.resume(delayMovement).		//resume Movement Intention
 -!findGoalzone <-
@@ -189,14 +234,24 @@ obstacle().
 		if(Deadline<(Step+50) | acceptedTask(TaskID) ){!acceptTask}
 		else
 		{
-			-+taskID(TaskID);
+			
 			accept(TaskID);
+			-+taskID(TaskID);
 			.broadcast(tell,acceptedTask(TaskID));
 			-+pathgoal("");
 			-+taskAccepted(true);
-			-+secondBlock(XA,YA,RA); // 2-Block tasks only
-			if(.substring("b0",RB)){!findDispenser_0;}
-			else{!findDispenser_1;}
+			
+			if(XB == 0 & YB ==1)
+			{
+				-+secondBlock(XA,YA,RA); // 2-Block tasks only
+				if(.substring("b0",RB)){!findDispenser_0;}
+				else{!findDispenser_1;}}
+			else
+			{
+				-+secondBlock(XB,YB,RB); // 2-Block tasks only
+				if(.substring("b0",RA)){!findDispenser_0;}
+				else{!findDispenser_1;}
+			}
 			//-+currentIntention("move");	//only for 1-Block Tasks
 			//Start search for Partern for 2-Block tasks
 			.my_name(MyName);
@@ -280,7 +335,6 @@ obstacle().
 +!moveTowards(X,Y) : true <- 		// create a list of Movements towards a certain destination
 	lib.findPath(X,Y,Path);	//findPath java method returns a string of Directions to follow
 	.term2string(Path,P);
-	.print("in MT ",P);
 	-+path(P).
 	
 +!moveTowards(X,Y) <- !moveTowards(X,Y).
