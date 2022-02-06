@@ -1,22 +1,31 @@
 
 TODO:
 
-function for shortest path to taskboard/ dispenser/ goalzone
-	(like findBestpartner) oder betragsfunktion in java
+getting function for shortest path to taskboard/ dispenser/ goalzone to work properly
 	
-	halfway done
-
-
-
 connect blocks
 -> after getting their blocks agents move to each other
 	connect blocks
 	move together to goalzone?
+	
+	idea: agent 1(who submits the task) stops when in sight with partner
+		agent 2 moves in position to connect his block
+		1) block needs to go left/right 
+			-> agent 2 moves left/right next to agent 1 and rotates his block ccs/cs till facing south
+			(problem: block is attached left/right to agent 2/agent1)
+		2)block needs to go south 
+			->?
 
 movement!
 	avoid obstacles, agents and blocks
 		->rotation
-	
+		
+failsave for disconnects?
+
+
+PVP:
+tasks:
+	if an agent has a already sumbitted task, it should drop it
 
 
 
@@ -24,3 +33,5 @@ DONE:
 
 tasks: erst linker dann rechter block
 -> block unter agent mit task immer block 1
+
+implementing a function to find the shortest distance to POIs
