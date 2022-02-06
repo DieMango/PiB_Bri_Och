@@ -3,6 +3,8 @@ TODO:
 
 function for shortest path to taskboard/ dispenser/ goalzone
 	(like findBestpartner) oder betragsfunktion in java
+	
+	halfway done
 
 
 
@@ -12,6 +14,9 @@ connect blocks
 	move together to goalzone?
 
 movement!
+	avoid obstacles, agents and blocks
+		->rotation
+	
 
 
 
