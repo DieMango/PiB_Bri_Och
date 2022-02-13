@@ -1,6 +1,7 @@
 
 TODO:
 
+Connect to tournament-server
 problem: agents dont update their directions properly
 
 getting function for shortest path to taskboard/ dispenser/ goalzone to work properly
