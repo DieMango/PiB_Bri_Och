@@ -1,0 +1,12 @@
+agenten haben dauerhaft einen leeren path
+
+überprüfung ob wenn path("") und pathgoal("____") ob das ziel auch tatsächlich erreicht wurde.
+	brauchen wir dann reduce path noch? oder könenn wir das andere nicht abändern, dass wir einfach switchen wenn wir da sind?
+
+tasks werden nicht richtig accepted
+
+irgendwas läuft grad sehr faslch ....
+
+hindernissen ausweichen
+
+restart funktion, wenn agenten reconnecten, um herauszufinden, ob sie blöcke tragen, an einem task beteildigt sind usw
