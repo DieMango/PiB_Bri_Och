@@ -1,3 +1,4 @@
+agenten gehen nicht zur nächsten poi, wenn eine nähre bekannt ist/gefunden wird
 agenten blockieren dispenser beim warten auf den partner
 agenten blockieren sihc gegenseitig
 agenten gehen zu weit
