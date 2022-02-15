@@ -1,4 +1,5 @@
-agenten haben dauerhaft einen leeren path
+agenten gehen zu weit
+	haben teilweise einen leeren path
 
 überprüfung ob wenn path("") und pathgoal("____") ob das ziel auch tatsächlich erreicht wurde.
 	brauchen wir dann reduce path noch? oder könenn wir das andere nicht abändern, dass wir einfach switchen wenn wir da sind?
