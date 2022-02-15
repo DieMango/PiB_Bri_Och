@@ -1,3 +1,5 @@
+agenten blockieren dispenser beim warten auf den partner
+agenten blockieren sihc gegenseitig
 agenten gehen zu weit
 	haben teilweise einen leeren path
 
