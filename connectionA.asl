@@ -61,31 +61,32 @@ obstacle().
 
 //syncing actions to the rythm of the server
 +actionID(X) : true <- 
-	.abolish(isBusy);
-	-+currentStep(X).
+	-isBusy.
 //// move in the rythm of the server
-+step(X) : currentIntention("request") <-	!requestBlock.		
-+step(X) : currentIntention("attach") <-	!attachBlock.
-+step(X) : currentIntention("accept") <-	!acceptTask.
-+step(X) : currentIntention("move") <- 		!delayMovement.	
-+step(X) : currentIntention("submit") <-	!submit.	
-+step(X) : currentIntention("choosePartner") <-	!choosePartner.
-+step(X) : currentIntention("merge") <-	!mergeBlocks.
-+step(X) : currentIntention("check") <-	!check.
-+step(X) : currentIntention("waiting") <-	!waiting.
-+step(X) : currentIntention("connect") <-	!connect.
++step(X) : currentIntention("request") <-	-+currentStep(X);!requestBlock.		
++step(X) : currentIntention("attach") <-	-+currentStep(X);!attachBlock.
++step(X) : currentIntention("accept") <-	-+currentStep(X);!acceptTask.
++step(X) : currentIntention("move") <- 		-+currentStep(X);!delayMovement.	
++step(X) : currentIntention("submit") <-	-+currentStep(X);!submit.	
++step(X) : currentIntention("choosePartner") <-	-+currentStep(X);!choosePartner.
++step(X) : currentIntention("merge") <-		-+currentStep(X);!mergeBlocks.
++step(X) : currentIntention("check") <-		-+currentStep(X);!check.
++step(X) : currentIntention("waiting") <-	-+currentStep(X);!waiting.
++step(X) : currentIntention("connect") <-	-+currentStep(X);!connect.
++step(X) : currentIntention("unattach") <-	-+currentStep(X);!unattach.
 
 +lastActionResult(failed) :true <- 
 	.print("last action failed").
 
 //singleblock task deadline watch
 //TODO 2block ?
-+task(TaskID,Deadline,X,[req(XB,YB,D)]) : true <- 
-	?currentStep(Step);
-	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,D)])}.
 +task(TaskID,Deadline,X,[req(XB,YB,RB),req(XA,YA,RA)]) : true <-
 	?currentStep(Step);
 	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,RB),req(XA,YA,RA)])}.
++task(TaskID,Deadline,X,[req(XB,YB,D)]) : true <- 
+	?currentStep(Step);
+	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,D)])}.
+
 	
 +taskboard(X,Y) : pathgoal("taskboard")<-
 	!findTaskboard.
@@ -143,14 +144,24 @@ obstacle().
 		.print("failed to reach dispenser, trying again");
 	}.
 
+	
 +!check : pathgoal("goalZone") <-	//Goal
 	?currentPosition(X,Y);
 	?closestPOI(ClosestX,ClosestY);
-	if(ClosestX == X & ClosestY ==Y)
+	for(goals(GX,GY))
 	{
+		if(GX == X & GY ==Y){-+isInGoalzone}
+	}
+	if(isInGoalzone)
+	{
+		-isInGoalzone;
+		if(oneBlockTask(_)){-+currentIntention("submit");}
+		else
+		{
 		-+currentIntention("merge");
 		?currentPartner(Partner);
 		.send(Partner,tell,partnerIsReady(ClosestX,ClosestY));
+		}
 		skip;
 		.print("reached a GoalZone");}
 	else
@@ -193,6 +204,7 @@ obstacle().
 	.print("I did nothing? :O").
 
 +!check <-
+	-+currentIntention("move");
 	!randomMovement.
 
 //map commuication, agents sending positions of POIs to other agents
@@ -422,7 +434,8 @@ obstacle().
 	-+path(P).
 	
 +!delayMovement : path("") <-
-	 skip.
+	-+currentIntention("check");
+	skip.
 -!delayMovement <- !delayMovement.
 
 //directed movement
@@ -557,39 +570,63 @@ obstacle().
 //accepting tasks
 +!acceptTask : true <-
 		?currentStep(Step);
-		//?currentTasks(TaskID,Deadline,Y,[req(XB,YB,RB)]);	//1- Block tasks
-		?currentTasks(TaskID,Deadline,Y,[req(XB,YB,RB),req(XA,YA,RA)]);	//2-Block Tasks
-		.abolish(currentTasks(TaskID,_,_,_));		
-		if(Deadline<(Step+50) | acceptedTask(TaskID) ){!acceptTask} //only accept tasks that have a chance to be completed, a task can only be accepted by one agent of the team
-		else
+		.random([1,1,1,2],NumberOfBlocks);
+		if(NumberOfBlocks == 1)
 		{
-			.broadcast(tell,acceptedTask(TaskID)); //tell other agents that this task is taken
-			accept(TaskID);
-			-+taskID(TaskID);
-			-+pathgoal("");
-			-+taskAccepted(true);
-			
-			if(XB == 0 & YB ==1)
+			?currentTasks(TaskID,Deadline,Y,[req(XB,YB,RB)]);	//1-Block Tasks
+			-currentTasks(TaskID,_,_,_);		
+			if((Deadline<(Step+50)) | acceptedTask(TaskID) ){!acceptTask;.print("not accepting",TaskID)} //only accept tasks that have a chance to be completed, a task can only be accepted by one agent of the team
+			else
 			{
-				-+secondBlock(XA,YA,RA); // 2-Block tasks only
+				.broadcast(tell,acceptedTask(TaskID)); //tell other agents that this task is taken
+				accept(TaskID);
+				-+oneBlockTask(true);
+				-+taskID(TaskID);
+				-+pathgoal("");
+				-+taskAccepted(true);
 				if(.substring("b0",RB)){!findDispenser("b0");}
 				elif(.substring("b1",RB)){!findDispenser("b1");}
 				elif(.substring("b2",RB)){!findDispenser("b2");}
+				-+currentIntention("move");	//only for 1-Block Tasks
 			}
+		}
+		else
+		{
+			?currentTasks(TaskID,Deadline,Y,[req(XB,YB,RB),req(XA,YA,RA)]);	//2-Block Tasks
+			-currentTasks(TaskID,_,_,_);		
+			if((Deadline<(Step+50)) | acceptedTask(TaskID) ){!acceptTask;.print("not accepting",TaskID)} //only accept tasks that have a chance to be completed, a task can only be accepted by one agent of the team
 			else
 			{
-				-+secondBlock(XB,YB,RB); // 2-Block tasks only
-				if(.substring("b0",RA)){!findDispenser("b0");}
-				elif(.substring("b1",RA)){!findDispenser("b1");}
-				elif(.substring("b2",RA)){!findDispenser("b2");}
+				.broadcast(tell,acceptedTask(TaskID)); //tell other agents that this task is taken
+				accept(TaskID);
+				-+taskID(TaskID);
+				-+pathgoal("");
+				-+taskAccepted(true);
+				
+				if(XB == 0 & YB ==1)
+				{
+					-+secondBlock(XA,YA,RA); // 2-Block tasks only
+					if(.substring("b0",RB)){!findDispenser("b0");}
+					elif(.substring("b1",RB)){!findDispenser("b1");}
+					elif(.substring("b2",RB)){!findDispenser("b2");}
+				}
+				else
+				{
+					-+secondBlock(XB,YB,RB); // 2-Block tasks only
+					if(.substring("b0",RA)){!findDispenser("b0");}
+					elif(.substring("b1",RA)){!findDispenser("b1");}
+					elif(.substring("b2",RA)){!findDispenser("b2");}
+				}
+				//-+currentIntention("move");	//only for 1-Block Tasks
+				
+				//Start search for Partner for 2-Block tasks
+				.my_name(MyName);
+				.print("looking for a DancePartner");
+				.broadcast(achieve,partnersearch(MyName));
+				-+currentIntention("choosePartner");
 			}
-			//-+currentIntention("move");	//only for 1-Block Tasks
 			
-			//Start search for Partner for 2-Block tasks
-			.my_name(MyName);
-			.print("looking for a DancePartner");
-			.broadcast(achieve,partnersearch(MyName));
-			-+currentIntention("choosePartner");
+		
 		}.
 	
 +!acceptTask <- !acceptTask.
@@ -602,13 +639,14 @@ obstacle().
 	.print(AgentName,"wants help");
 	?currentPosition(X,Y);
 	.my_name(MyName);
-	if(taskAccepted(true) | isBusy) //agent has a task already
+	if(taskAccepted | isBusy) //agent has a task already
 	{
 		.print(MyName ,"I am busy");
 	}
 	else //agent is available
 	{
 		+isBusy;
+		.suspend(acceptTask);
 		.drop_intention(acceptTask);
 		.send(AgentName,achieve,partnerResponse(MyName,X,Y));
 	}.
@@ -651,6 +689,8 @@ obstacle().
 	-+currentPartner(AgentName);
 	-+isSupport(true);
 	-+taskAccepted(true);
+	.suspend(acceptTask);
+	.drop_intention(acceptTask);
 	-+bringBlockTo(X,Y);	//Block location to connect onto
 	.term2string(SupportBlock,Block);
 	.print("search for this Block as Sup",Block);
@@ -667,6 +707,13 @@ obstacle().
 	-+currentIntention("attach").
 
 //attaching a requested block and storing the direction in which the block is attached to the agent
++!attachBlock : oneBlockTask(X) <-
+	?grabDirection(Direction);
+	attach(Direction);
+	.print("grabbed block all by myself!");
+	!findGoalzone;
+	-+currentIntention("move").
+
 +!attachBlock : true <-
 	?grabDirection(Direction);
 	attach(Direction);
@@ -724,12 +771,14 @@ obstacle().
 			if(grabDirection("s")){rotate("cw");-+grabDirection("w")}
 			elif(grabDirection("e")){rotate("ccw");-+grabDirection("n");.send(Agent,tell,readyToSupport("n"));-+currentIntention("connect")}
 			elif(grabDirection("w")){rotate("cw");-+grabDirection("n");.send(Agent,tell,readyToSupport("n"));-+currentIntention("connect")}
+			else{.send(Agent,tell,readyToSupport("n"));-+currentIntention("connect")}
 		}
 		else //point east
 		{
 			if(grabDirection("s")){rotate("ccw");-+grabDirection("e");.send(Agent,tell,readyToSupport("e"));-+currentIntention("connect")}
 			elif(grabDirection("n")){rotate("cw");-+grabDirection("e");.send(Agent,tell,readyToSupport("e"));-+currentIntention("connect")}
 			elif(grabDirection("w")){rotate("cw");-+grabDirection("n")}
+			else{.send(Agent,tell,readyToSupport("n"));-+currentIntention("connect")}
 		}
 		.print("start merge").
 		
@@ -738,10 +787,14 @@ obstacle().
 	if(grabDirection("n")){rotate("cw");-+grabDirection("e")}
 	elif(grabDirection("e")){rotate("cw");-+grabDirection("s");.send(Agent,tell,readyToConnect("s"));-+currentIntention("connect")}
 	elif(grabDirection("w")){rotate("ccw");-+grabDirection("s");.send(Agent,tell,readyToConnect("s"));-+currentIntention("connect")}
+	else{.send(Agent,tell,readyToConnect("s"));-+currentIntention("connect")}
 	.print("start merge").
 		
 +!mergeBlocks :true <-
 	.print("waiting for Partner");
+	skip.
+
+-!mergeBlocks <-
 	skip.
 
 +!connect : readyToSupport(SupportGrab) <-
@@ -761,18 +814,34 @@ obstacle().
 	!findTaskboard.
 	
 //submitting a task, deleting the task from the beliefbase
+
++!submit : grabDirection("n") <-	rotate("cw");	-+grabDirection("e").
++!submit : grabDirection("e") <-	rotate("cw");	-+grabDirection("s").
++!submit : grabDirection("w") <-	rotate("ccw");	-+grabDirection("s").
+
 +!submit : true <-
 	?taskID(TaskID);
 	submit(TaskID);
 	-taskID;
-	-+currentIntention("move");
+	-+currentIntention("unattach");
 	!findTaskboard;
 	.print("I DID IT!");
 	-taskAccepted.
 	//todo? telling other agents that the task is finished, maybe usefull for pvp
+-!submit : true <-
+	skip.
 
-	
++!unattach : clearCounter(3) <- //detach oneself from earthly bounds aka explosions
+	-+currentIntention("move");
+	skip;
+	-clearCounter(_).
++!unattach : clearCounter(X) <- //detach oneself from earthly bounds aka explosions
+	clear(0,1);
+	-+clearCounter(X+1).
 
++!unattach : true <- //detach oneself from earthly bounds aka explosions
+	clear(0,1);
+	-+clearCounter(1).
 	
 
 
