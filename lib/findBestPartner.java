@@ -43,7 +43,7 @@ public class findBestPartner extends DefaultInternalAction
             int xDNew = xDistanceNew;
             int yDNew = yDistanceNew;
 
-            if (Math.abs(xDistanceBest -50) < xDistanceBest)
+            /*if (Math.abs(xDistanceBest -50) < xDistanceBest)
             {
                 xDBest = Math.abs(xDistanceBest -50);
             }
@@ -61,13 +61,13 @@ public class findBestPartner extends DefaultInternalAction
             if (Math.abs(yDistanceNew -50) < yDistanceNew)
             {
                 yDNew = Math.abs(yDistanceNew -50);
-            } 
+            } */
 
 
             int bestDistance = xDBest + yDBest;
             int newDistance = xDNew + yDNew;
 
-            if(bestDistance-newDistance > 0)
+            if(bestDistance > newDistance)
             {
                 return un.unifies( new Atom("new") ,terms [6]);
             }

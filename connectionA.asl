@@ -34,10 +34,12 @@ lastDirection("w"). //brauchen wir das noch?
 path("").  //starting path
 pathgoal(""). //movementgoal
 currentIntention("move"). //agents want to move
-currentStep(0). //step of the round
-//vl(0). //wofür war das?
+currentStep(0). 
+boardSize(50).
+//step of the round
+//vl(0). //wof?r war das?
 
-// brauchen wir die noch für 2Blocktasks?
+// brauchen wir die noch f?r 2Blocktasks?
 //secondBlock().
 //currentPartner().
 //isSupport().
@@ -52,20 +54,27 @@ obstacle().
 
 /* Initial goals */
 
-!findTaskboard. //every agent should look for a task
-//!randomMovement. kann weg?
+//!findTaskboard. //every agent should look for a task
+//!randomMovement. //kann weg?
 
 /* Plans */
 
 //syncing actions to the rythm of the server
-+step(X) : true <- -+currentStep(X).
++actionID(X) : true <- 
+	.abolish(isBusy);
+	-+currentStep(X).
 //// move in the rythm of the server
-+actionID(X) : currentIntention("request") <-	!requestBlock.		
-+actionID(X) : currentIntention("attach") <-	!attachBlock.
-+actionID(X) : currentIntention("accept") <-	!acceptTask.
-+actionID(X) : currentIntention("move") <- 		!delayMovement.	
-+actionID(X) : currentIntention("submit") <-	!submit.	
-+actionID(X) : currentIntention("choosePartner") <-	!choosePartner.
++step(X) : currentIntention("request") <-	!requestBlock.		
++step(X) : currentIntention("attach") <-	!attachBlock.
++step(X) : currentIntention("accept") <-	!acceptTask.
++step(X) : currentIntention("move") <- 		!delayMovement.	
++step(X) : currentIntention("submit") <-	!submit.	
++step(X) : currentIntention("choosePartner") <-	!choosePartner.
++step(X) : currentIntention("merge") <-	!mergeBlocks.
++step(X) : currentIntention("check") <-	!check.
++step(X) : currentIntention("waiting") <-	!waiting.
++step(X) : currentIntention("connect") <-	!connect.
+
 +lastActionResult(failed) :true <- 
 	.print("last action failed").
 
@@ -77,45 +86,98 @@ obstacle().
 +task(TaskID,Deadline,X,[req(XB,YB,RB),req(XA,YA,RA)]) : true <-
 	?currentStep(Step);
 	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,RB),req(XA,YA,RA)])}.
+	
++taskboard(X,Y) : pathgoal("taskboard")<-
+	!findTaskboard.
+	
 +path("") : pathgoal("") <-		 //no path and no current goal ---> restart randomMovement
 	.print("finished my Movement.. Restart");
-	!randomMovement.
+	!findTaskboard.
 
++path(""): pathgoal("taskboard") | pathgoal("dispenser") |pathgoal("goalZone") | pathgoal("partner")<-
+	//.print("double checking");
+	-+currentIntention("check").
 //Switching to next next goal when the old one is achieved
 //Checking if POI is actually reached
-+path("") : pathgoal("taskboard") <-	//taskboard
-	-+pathgoal("");
++!check : pathgoal("taskboard") <-	//taskboard
 	?currentPosition(X,Y);
 	?closestPOI(ClosestX,ClosestY);
-	if (((X-ClosestX + Y-ClosestY)<2) & ((X-ClosestX + Y-ClosestY)>-2)){
+	if ((math.abs(X-ClosestX) + math.abs(Y-ClosestY))<3)
+	{
 		-+currentIntention("accept");
+		!acceptTask;
 		.print("reached board");}
-	else{
-	!findTaskboard;
-	.print("failed to reach board");}.
+		
+	else
+	{
+		!findTaskboard;
+		-+currentIntention("move");
+		skip;
+		.print("failed to reach board");
+	}.
 	
-+path("") : pathgoal("dispenser") <-	//dispenser
-	-+pathgoal("");
++!check : pathgoal("dispenser") <-	//dispenser
 	?currentPosition(X,Y);
 	?closestPOI(ClosestX,ClosestY); //TODO storing dispenser type
-	?findDispenser(Block);
-	if (((X-ClosestX + Y-ClosestY)<1) & ((X-ClosestX + Y-ClosestY)>-1)){
-		-+currentIntention("request");
-		.print("reached dispenser");}
-	else{
+	?blockToFind(Block);
+	if ((math.abs(X-ClosestX) + math.abs(Y-ClosestY))<2)
+	{
+		
+		if((math.abs(X-ClosestX) + math.abs(Y-ClosestY))==0)
+		{ 
+			-+path("e");
+			-+currentIntention("move");
+		}
+		else
+		{
+			-+currentIntention("request");
+			.print("reached dispenser");
+			!requestBlock;
+		}
+	}
+	else
+	{
 		!findDispenser(Block);
-		.print("failed to reach dispenser");}.
+		-+currentIntention("move");
+		skip;
+		.print("failed to reach dispenser, trying again");
+	}.
 
-+path("") : pathgoal("goalZone") <-	//Goal
-	-+pathgoal("");
++!check : pathgoal("goalZone") <-	//Goal
 	?currentPosition(X,Y);
 	?closestPOI(ClosestX,ClosestY);
-	if ((X-ClosestX + Y-ClosestY)=0){
-		-+currentIntention("submit");
-		.print("reached goal");}
-	else{
-	!findGoalzone;
-	.print("failed to reach goal");}.
+	if(ClosestX == X & ClosestY ==Y)
+	{
+		-+currentIntention("merge");
+		?currentPartner(Partner);
+		.send(Partner,tell,partnerIsReady(ClosestX,ClosestY));
+		skip;
+		.print("reached a GoalZone");}
+	else
+	{
+		!findGoalzone;
+		-+currentIntention("move");
+		skip;
+		.print("failed to reach goal");
+	}.
+	
++!check : pathgoal("partner") <-
+	?currentPosition(X,Y);
+	?closestPOI(ClosestX,ClosestY);
+	if ((math.abs(X-ClosestX) + math.abs(Y-ClosestY))==0){
+		-+currentIntention("merge");
+		.print("reached Partner!");
+		?currentPartner(Partner);
+		.send(Partner,tell,partnerIsReady(0,0));
+		}
+	else
+	{
+		!waiting;
+		-+currentIntention("move");
+		skip;
+		.print("failed to reach partner, Trying again");
+	}.
+	
 //Obstacle avoidance no longer needed?
 /*+lastActionResult(failed_path) : ~pathgoal("") <-
 	?pathgoal(P);
@@ -123,38 +185,150 @@ obstacle().
 	-+pathgoal("");
 	-+searchFor(P). */
 
++lastAction(no_action) :currentIntention("move") <-
+	.random(["ss","ww","ee","nn"],RandomDirection);
+	?path(Path);
+	.concat(RandomDirection,Path,NewPath);
+	-+path(NewPath);
+	.print("I did nothing? :O").
+
++!check <-
+	!randomMovement.
+
 //map commuication, agents sending positions of POIs to other agents
 +!updateSurroundings :true <-
 	?currentPosition(X,Y);
 	for(thing(TX,TY,taskboard,_))
 	{
-		+taskboard(TX+X,TY+Y);
+		?boardSize(Board);
+		+taskboard(TX+X,TY+Y);	//0
+		+taskboard(TX+X-Board,TY+Y-Board);	//top left
+		+taskboard(TX+X-0,TY+Y-Board);		// top
+		+taskboard(TX+X+Board,TY+Y-Board);	//top right
+		+taskboard(TX+X+Board,TY+Y+0);		//right
+		+taskboard(TX+X+Board,TY+Y+Board);	//bottom right
+		+taskboard(TX+X+0,TY+Y+Board);		//bottom
+		+taskboard(TX+X-Board,TY+Y+Board);	//bottom left
+		+taskboard(TX+X-Board,TY+Y-0);		//left
 		.broadcast(tell,taskboard(TX+X,TY+Y));
+		.broadcast(tell,taskboard(TX+X-Board,TY+Y-Board));
+		.broadcast(tell,taskboard(TX+X-0,TY+Y-Board));
+		.broadcast(tell,taskboard(TX+X+Board,TY+Y-Board));
+		.broadcast(tell,taskboard(TX+X+Board,TY+Y+0));
+		.broadcast(tell,taskboard(TX+X+Board,TY+Y+Board));
+		.broadcast(tell,taskboard(TX+X+0,TY+Y+Board));
+		.broadcast(tell,taskboard(TX+X-Board,TY+Y+Board));
+		.broadcast(tell,taskboard(TX+X-Board,TY+Y-0));
 	};
-	for(thing(D0X,D0Y,dispenser,b0))
+	for(thing(TX,TY,dispenser,b0))
 	{
-		+dispenser(D0X+X,D0Y+Y,"b0");
-		.broadcast(tell,dispenser(D0X+X,D0Y+Y,"b0"));
+		//+dispenser(D0X+X,D0Y+Y,"b0");
+		//.broadcast(tell,dispenser(D0X+X,D0Y+Y,"b0"));
+		
+		?boardSize(Board);
+		+dispenser(TX+X,TY+Y,"b0");	//0
+		+dispenser(TX+X-Board,TY+Y-Board,"b0");	//top left
+		+dispenser(TX+X-0,TY+Y-Board,"b0");		// top
+		+dispenser(TX+X+Board,TY+Y-Board,"b0");	//top right
+		+dispenser(TX+X+Board,TY+Y+0,"b0");		//right
+		+dispenser(TX+X+Board,TY+Y+Board,"b0");	//bottom right
+		+dispenser(TX+X+0,TY+Y+Board,"b0");		//bottom
+		+dispenser(TX+X-Board,TY+Y+Board,"b0");	//bottom left
+		+dispenser(TX+X-Board,TY+Y-0,"b0");		//left
+		.broadcast(tell,dispenser(TX+X,TY+Y,"b0"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y-Board,"b0"));
+		.broadcast(tell,dispenser(TX+X-0,TY+Y-Board,"b0"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y-Board,"b0"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y+0,"b0"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y+Board,"b0"));
+		.broadcast(tell,dispenser(TX+X+0,TY+Y+Board,"b0"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y+Board,"b0"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y-0,"b0"));
 	};
-	for(thing(D1X,D1Y,dispenser,b1))
+	for(thing(TX,TY,dispenser,b1))
 	{
-		+dispenser(D1X+X,D1Y+Y,"b1");
-		.broadcast(tell,dispenser(D1X+X,D1Y+Y,"b1"));
+		//+dispenser(D1X+X,D1Y+Y,"b1");
+		//.broadcast(tell,dispenser(D1X+X,D1Y+Y,"b1"));
+		
+		?boardSize(Board);
+		+dispenser(TX+X,TY+Y,"b1");	//0
+		+dispenser(TX+X-Board,TY+Y-Board,"b1");	//top left
+		+dispenser(TX+X-0,TY+Y-Board,"b1");		// top
+		+dispenser(TX+X+Board,TY+Y-Board,"b1");	//top right
+		+dispenser(TX+X+Board,TY+Y+0,"b1");		//right
+		+dispenser(TX+X+Board,TY+Y+Board,"b1");	//bottom right
+		+dispenser(TX+X+0,TY+Y+Board,"b1");		//bottom
+		+dispenser(TX+X-Board,TY+Y+Board,"b1");	//bottom left
+		+dispenser(TX+X-Board,TY+Y-0,"b1");		//left
+		.broadcast(tell,dispenser(TX+X,TY+Y,"b1"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y-Board,"b1"));
+		.broadcast(tell,dispenser(TX+X-0,TY+Y-Board,"b1"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y-Board,"b1"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y+0,"b1"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y+Board,"b1"));
+		.broadcast(tell,dispenser(TX+X+0,TY+Y+Board,"b1"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y+Board,"b1"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y-0,"b1"));
 	};
-	for(goal(GX,GY))
+	for(thing(D1X,D1Y,dispenser,b2))
 	{
-		+goals(GX+X,GY+Y);
-		.broadcast(tell,goals(GX+X,GY+Y));
+		//+dispenser(D1X+X,D1Y+Y,"b1");
+		//.broadcast(tell,dispenser(D1X+X,D1Y+Y,"b1"));
+		
+		?boardSize(Board);
+		+dispenser(TX+X,TY+Y,"b2");	//0
+		+dispenser(TX+X-Board,TY+Y-Board,"b2");	//top left
+		+dispenser(TX+X-0,TY+Y-Board,"b2");		// top
+		+dispenser(TX+X+Board,TY+Y-Board,"b2");	//top right
+		+dispenser(TX+X+Board,TY+Y+0,"b2");		//right
+		+dispenser(TX+X+Board,TY+Y+Board,"b2");	//bottom right
+		+dispenser(TX+X+0,TY+Y+Board,"b2");		//bottom
+		+dispenser(TX+X-Board,TY+Y+Board,"b2");	//bottom left
+		+dispenser(TX+X-Board,TY+Y-0,"b2");		//left
+		.broadcast(tell,dispenser(TX+X,TY+Y,"b2"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y-Board,"b2"));
+		.broadcast(tell,dispenser(TX+X-0,TY+Y-Board,"b2"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y-Board,"b2"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y+0,"b2"));
+		.broadcast(tell,dispenser(TX+X+Board,TY+Y+Board,"b2"));
+		.broadcast(tell,dispenser(TX+X+0,TY+Y+Board,"b2"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y+Board,"b2"));
+		.broadcast(tell,dispenser(TX+X-Board,TY+Y-0,"b2"));
+	};
+	for(goal(TX,TY))
+	{
+		//+goals(GX+X,GY+Y);
+		//.broadcast(tell,goals(GX+X,GY+Y));
+		
+		?boardSize(Board);
+		+goals(TX+X,TY+Y);	//0
+		+goals(TX+X-Board,TY+Y-Board);	//top left
+		+goals(TX+X-0,TY+Y-Board);		// top
+		+goals(TX+X+Board,TY+Y-Board);	//top right
+		+goals(TX+X+Board,TY+Y+0);		//right
+		+goals(TX+X+Board,TY+Y+Board);	//bottom right
+		+goals(TX+X+0,TY+Y+Board);		//bottom
+		+goals(TX+X-Board,TY+Y+Board);	//bottom left
+		+goals(TX+X-Board,TY+Y-0);		//left
+		.broadcast(tell,goals(TX+X,TY+Y));
+		.broadcast(tell,goals(TX+X-Board,TY+Y-Board));
+		.broadcast(tell,goals(TX+X-0,TY+Y-Board));
+		.broadcast(tell,goals(TX+X+Board,TY+Y-Board));
+		.broadcast(tell,goals(TX+X+Board,TY+Y+0));
+		.broadcast(tell,goals(TX+X+Board,TY+Y+Board));
+		.broadcast(tell,goals(TX+X+0,TY+Y+Board));
+		.broadcast(tell,goals(TX+X-Board,TY+Y+Board));
+		.broadcast(tell,goals(TX+X-Board,TY+Y-0));
 	};
 	//TODO Obstacles
 	for(thing(AX,AY,entity,_))
 	{
-		+agents(AX,AY);
+		+obstacles(AX,AY);
 	};
-	/*for(obstacle(OX,OY))
+	for(obstacle(OX,OY))
 	{
 		+obstacles(OX,OY);
-	};*/
+	};
 	.abolish(thing(_,_,_,_));
 	.abolish(goal(_,_)).
 	
@@ -175,11 +349,13 @@ obstacle().
 
 //untargeted movement, for the gents to explore the map
 // chose a random destination on the edge of the percept range and move to that location
-+!randomMovement : path("")<-		
++!randomMovement : path("")<-	
+	-+pathgoal("");
 	.random([[0,5],[5,0],[0,-5],[-5,0]],Direction);
 	.nth(0,Direction,X);
 	.nth(1,Direction,Y);
 	.abolish(moveTowards(_,_));
+	-+closestPOI(X,Y);
 	!moveTowards(X,Y).
 +!randomMovement <- !randomMovement.
 
@@ -188,39 +364,65 @@ obstacle().
 	?path(MovePath); 
 	.nth(0,MovePath,Direction);
 	?closestPOI(ClosestX,ClosestY);
-	for(obstacle(OX,OY))
+	for(obstacles(OX,OY))
 	{
-		if ((ClosestX <= OX) & (ClosestY <=OY)){ //POI between agent and obstacle
-			//continue as intended, cause obstacle is not an issue
-			}//problem: obstacles in 2-3 directions
-		else{
-			if((Direction == "n" & OY == -1)|(Direction == "s" & OY == 1)){
-				if (ClosestX <0){
-					.concat("www",MovePath,NewPath);
-					-+path(NewPath);}
-				else{
-					.concat("eee",MovePath,NewPath);
-					-+path(NewPath);}}
-			elif((Direction == "e" & OX == 1)|(Direction == "w" & OX == -1)){
-				if (ClosestY <0){
-					.concat("nnn",MovePath,NewPath);
-					-+path(NewPath);}
-				else{
-					.concat("nnn",MovePath,NewPath);
-					-+path(NewPath);}}
-		};
+		if(OX == 0 & OY==-1){+blockedNorth}
+		if(OX == 1 & OY== 0){+blockedEast}
+		if(OX == 0 & OY== 1){+blockedSouth}
+		if(OX ==-1 & OY== 0){+blockedWest}
 	};
+	if(Direction == "n")
+	{
+		if(blockedNorth & blockedEast & blockedWest){.random(["se","sw"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath);}
+		elif(blockedNorth & blockedEast ) {.random(["w","ww","www"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath);}
+		elif(blockedNorth & blockedWest ) {.random(["e","ee","eee"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath);}
+		elif(blockedNorth){.random(["e","w"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath);.print("blocked north")}
+		else{.concat("",MovePath,NewPath);}
+		
+	}
+	elif(Direction == "e")
+	{
+		if(blockedEast & blockedNorth & blockedSouth){.random(["ws","wn"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedEast & blockedNorth ) {.random(["s","ss","sss"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedEast & blockedSouth ) {.random(["n","nn","nnn"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedEast){.random(["n","s"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath);.print("blocked east")}
+		else{.concat("",MovePath,NewPath);}
+	}
+	elif(Direction == "s")
+	{
+		if(blockedSouth & blockedEast & blockedWest){.random(["ne","nw"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedSouth & blockedEast ) {.random(["w","ww","www"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedSouth & blockedWest ) {.random(["e","ee","eee"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedSouth){.random(["e","w"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath);.print("blocked south")}
+		else{.concat("",MovePath,NewPath);}
+	}
+	elif(Direction == "w")
+	{
+		if(blockedWest & blockedSouth & blockedNorth){.random(["es","en"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedWest & blockedSouth ) {.random(["n","nn","nn"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedWest & blockedNorth ) {.random(["s","ss","sss"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath)}
+		elif(blockedWest){.random(["s","n"],PaddedDirection);.concat(PaddedDirection,MovePath,NewPath);.print("blocked west")}
+		else{.concat("",MovePath,NewPath);}
+	}
+	
+	.nth(0,NewPath,NewDirection);
+	.abolish(obstacles(_,_));
 	.abolish(obstacle(_,_));
+	-blockedNorth;
+	-blockedEast;
+	-blockedSouth;
+	-blockedWest;
+	
 	//!delayMovement.
-	.delete(0,MovePath,P);
-	move(Direction);
+	.delete(0,NewPath,P);
+	move(NewDirection);
 	?currentPosition(X,Y);
 	-+believePosition(X,Y);
-	-+lastDirection(Direction);
+	-+lastDirection(NewDirection);
 	-+path(P).
 	
 +!delayMovement : path("") <-
-	 .wait(0).
+	 skip.
 -!delayMovement <- !delayMovement.
 
 //directed movement
@@ -261,101 +463,92 @@ obstacle().
 	?currentPosition(PX,PY);
 	-+closestPOI(TX,TY);
 	.findall(taskboardPos(X,Y),taskboard(X,Y),List); 
-	for(.member(i(NewX,NewY),List)) //determinating which tasboard is the nearest
+	for(taskboard(NewX,NewY)) //determinating which tasboard is the nearest
 	{
 		?closestPOI(ClosestX,ClosestY);
 		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion); //bestpartner function umbenennen?
-		if(Conclusion =="new"){-+closestPOI(NewX,NewY)};
+		if(Conclusion ==new){-+closestPOI(NewX,NewY)};
 	};
-	?closestPOI(ClosestX,ClosestY); //bewegung zum taskboard inizialisieren
+	
+	?closestPOI(CX,CY); //bewegung zum taskboard inizialisieren
 	.drop_intention(randomMovement);
-	.suspend(delayMovement);
+	//.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
 	-+pathgoal("taskboard");
-	.abolish(moveTowards(_,_));
-	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
-	!reducePathBy(2); //agents can accepts tasks within a range of 2 blocks from taskboard
-	.resume(delayMovement).		//resume Movement Intention
 	
-+!findTaskboard <- !findTaskboard.
+	.abolish(moveTowards(_,_));
+	!moveTowards(CX-PX,CY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!reducePathBy(2). //agents can accepts tasks within a range of 2 blocks from taskboard
+	//.resume(delayMovement).		//resume Movement Intention
+	
++!findTaskboard <- !randomMovement.
 -!findTaskboard <- //for debug
 	.print("find Taskboard failed").
 
 //finding dispenser 1&0
-+!findDispenser_1 : dispenser(DX,DY,"b1") <-
++!findDispenser(Block) : dispenser(DX,DY,Block) <-
+	-+blockToFind(Block);
 	//Find closest of the Item to search
 	?currentPosition(PX,PY);
 	-+closestPOI(DX,DY);
-	.findall(dispenserPos(X,Y),dispenser(X,Y,"b1"),List);
-	for(.member(i(NewX,NewY),List))
+	for(dispenser(NewX,NewY,Block))
 	{
 		?closestPOI(ClosestX,ClosestY);
 		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
-		if(Conclusion =="new"){-+closestPOI(NewX,NewY)};
+		if(Conclusion ==new){-+closestPOI(NewX,NewY)};
 	};
-	?closestPOI(ClosestX,ClosestY);
-	.drop_intention(randomMovement);
-	.suspend(delayMovement);
-	-+pathgoal("temp");
-	-+path("");
+	?closestPOI(CX,CY);
+	if(CX== PX & CY == PY){!check}
+	else{
+		.drop_intention(randomMovement);
+		.suspend(delayMovement);
+		-+pathgoal("temp");
+		-+path("");
+		-+pathgoal("dispenser");
+		.abolish(moveTowards(_,_));
+		!moveTowards(CX-PX,CY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+		!reducePathBy(1);	//request block from an adjecent tile
+		.resume(delayMovement)		//resume Movement Intention
+	}.
+
++!findDispenser(Block) : true <-
+	-+blockToFind(Block);
+	?boardSize(Board);
+	-+closestPOI(0,0);
+	-+currentIntention("move");
 	-+pathgoal("dispenser");
-	.abolish(moveTowards(_,_));
-	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
-	!reducePathBy(1);	//request block from an adjecent tile
-	.resume(delayMovement).		//resume Movement Intention
+	!moveTowards(Board/2,Board/2).
 	
--!findDispenser_1 <-
+-!findDispenser <-
 	.print("find Dispenser1 failed").
-	
-//analog zu dispenser_1
-+!findDispenser_0 : dispenser(DX,DY,"b0") <-
-	//Find closest of the Item to search
-	?currentPosition(PX,PY);
-	-+closestPOI(DX,DY);
-	.findall(dispenserPos(X,Y),dispenser(X,Y,"b1"),List);
-	for(.member(i(NewX,NewY),List))
-	{
-		?closestPOI(ClosestX,ClosestY);
-		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
-		if(Conclusion =="new"){-+closestPOI(NewX,NewY)};
-	};
-	?closestPOI(ClosestX,ClosestY);
-	.drop_intention(randomMovement);
-	.suspend(delayMovement);
-	-+pathgoal("temp");
-	-+path("");
-	-+pathgoal("dispenser");
-	.abolish(moveTowards(_,_));
-	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
-	!reducePathBy(1);
-	.resume(delayMovement).		//resume Movement Intention
-	
--!findDispenser_0 <-
-	.print("find Dispenser0 failed").	
-	
+
+
 //finding goalzones
 +!findGoalzone : goals(GX,GY) <-
 	//Find closest of the Item to search
 	?currentPosition(PX,PY);
 	-+closestPOI(GX,GY);
-	.findall(goalPos(X,Y),goals(X,Y),List);
-	for(.member(i(NewX,NewY),List))
+	for(goals(NewX,NewY))
 	{
 		?closestPOI(ClosestX,ClosestY);
 		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
-		if(Conclusion =="new"){-+closestPOI(NewX,NewY)};
+		if(Conclusion ==new){-+closestPOI(NewX,NewY)};
 	};
-	?closestPOI(ClosestX,ClosestY);
-	.drop_intention(randomMovement);
-	.suspend(delayMovement);
-	-+pathgoal("temp");
-	-+path("");
-	-+pathgoal("goalZone");
-	.abolish(moveTowards(_,_));
-	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
-	//!reducePathBy(1);
-	.resume(delayMovement).		//resume Movement Intention
+	?closestPOI(X,Y);
+	if(X==PX & Y==PY){!check}
+	else
+	{
+		.drop_intention(randomMovement);
+		.suspend(delayMovement);
+		-+pathgoal("temp");
+		-+path("");
+		-+pathgoal("goalZone");
+		.abolish(moveTowards(_,_));
+		!moveTowards(X-PX,Y-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+		//!reducePathBy(1);
+		.resume(delayMovement)	//resume Movement Intention
+	}.
 	
 -!findGoalzone <-
 	.print("find Goalzone failed").	
@@ -370,9 +563,9 @@ obstacle().
 		if(Deadline<(Step+50) | acceptedTask(TaskID) ){!acceptTask} //only accept tasks that have a chance to be completed, a task can only be accepted by one agent of the team
 		else
 		{
+			.broadcast(tell,acceptedTask(TaskID)); //tell other agents that this task is taken
 			accept(TaskID);
 			-+taskID(TaskID);
-			.broadcast(tell,acceptedTask(TaskID)); //tell other agents that this task is taken
 			-+pathgoal("");
 			-+taskAccepted(true);
 			
@@ -401,7 +594,7 @@ obstacle().
 	
 +!acceptTask <- !acceptTask.
 -!acceptTask <-
-	.print("failed accept Task");
+	//.print("failed accept Task");
 	skip.
 	
 //answering to finding a partner for 2-block tasks	
@@ -409,12 +602,14 @@ obstacle().
 	.print(AgentName,"wants help");
 	?currentPosition(X,Y);
 	.my_name(MyName);
-	if(taskAccepted(true)) //agent has a task already
+	if(taskAccepted(true) | isBusy) //agent has a task already
 	{
 		.print(MyName ,"I am busy");
 	}
 	else //agent is available
 	{
+		+isBusy;
+		.drop_intention(acceptTask);
 		.send(AgentName,achieve,partnerResponse(MyName,X,Y));
 	}.
 	
@@ -428,7 +623,7 @@ obstacle().
 		?bestPartner(PName,PX,PY);
 		?currentPosition(MyX,MyY);
 		lib.findBestPartner(MyX,MyY,PX,PY,X,Y,Conclusion);
-		if(Conclusion == "new")
+		if(Conclusion == new)
 		{
 			-+bestPartner(AgentName,X,Y)
 		}
@@ -444,18 +639,24 @@ obstacle().
 	?secondBlock(BX,BY,Block);
 	-+currentPartner(AgentName);
 	-+currentIntention("move");
+	skip;
 	.send(AgentName,achieve,chosenAsSupport(MyName,BX,BY,Block)).
 
 +!choosePartner : true <-
-	.print("got no replies").
+	.print("got no replies");
+	skip.
 	
 //chosen support agent updates its belief and starts his part of the task
-+!chosenAsSupport(AgentName,X,Y,Block) : true <-
++!chosenAsSupport(AgentName,X,Y,SupportBlock) : true <-
 	-+currentPartner(AgentName);
 	-+isSupport(true);
 	-+taskAccepted(true);
-	if(.substring("b0",Block)){!findDispenser_0;}
-			else{!findDispenser_1;}
+	-+bringBlockTo(X,Y);	//Block location to connect onto
+	.term2string(SupportBlock,Block);
+	.print("search for this Block as Sup",Block);
+	if("b0"==Block){!findDispenser("b0")}
+	elif("b1"==Block){!findDispenser("b1")}
+	elif("b2"==Block){!findDispenser("b2")}
 	-+currentIntention("move").	
 
 //requesting block from dispenser 
@@ -470,48 +671,103 @@ obstacle().
 	?grabDirection(Direction);
 	attach(Direction);
 	.print("grabbed block!");
-	-+currentIntention("move");
+	
 	?currentPartner(AgentName);
 	?currentPosition(X,Y);
-	.send(AgentName,tell,partnerIsReady(X,Y));
-	//!findGoalzone.
-	!mergeBlocks.
+	if(isSupport(true))
+	{
+	-+pathgoal("random");
+	.random([[0,5],[5,0],[0,-5],[-5,0]],RandomDirection);
+	.nth(0,RandomDirection,MoveX);
+	.nth(1,RandomDirection,MoveY);
+	.abolish(moveTowards(_,_));
+	-+closestPOI(MoveX,MoveY);
+	!moveTowards(MoveX,MoveY);
+	-+currentIntention("waiting");
+	}
+	else{!findGoalzone;-+currentIntention("move");}.
+
++!waiting : partnerIsReady(PartnerX,PartnerY)  & bringBlockTo(-1,Y) <-
+	-+pathgoal("partner");
+	-+currentIntention("move");
+	?currentPosition(PX,PY);
+	.print("partner told me to go somewhere");
+	-+closestPOI(PartnerX-1,PartnerY+2);
+	!moveTowards(PartnerX-1-PX,PartnerY+2-PY).
 	
-+!mergeBlocks : isSupport(true) & parterIsReady(X,Y)<-
-		.print("start merge");
-		// move towards the partner
-		//calculate middle Point
-		?currentPosition(MyX,MyY);
-		!moveTowards((MyX-X)/2,(MyY-Y)/2);
-		!reducePath(2).
++!waiting : partnerIsReady(PartnerX,PartnerY)  & bringBlockTo(0,Y)	<-
+	-+pathgoal("partner");
+	-+currentIntention("move");
+	?currentPosition(PX,PY);
+	.print("partner told me to go somewhere");
+	-+closestPOI(PartnerX-1,PartnerY+2);
+	!moveTowards(PartnerX-1-PX,PartnerY+2-PY).
++!waiting : partnerIsReady(PartnerX,PartnerY)  & bringBlockTo(1,Y)<-
+	-+pathgoal("partner");
+	-+currentIntention("move");
+	?currentPosition(PX,PY);
+	.print("partner told me to go somewhere");
+	-+closestPOI(PartnerX+1,PartnerY+2);
+	!moveTowards(PartnerX+1-PX,PartnerY+2-PY).
++!waiting : path("") <-
+	skip.
++!waiting : true <-
+	!delayMovement.
+
+	
+	
++!mergeBlocks : isSupport(true) & partnerIsReady(X,Y) <-
+		?bringBlockTo(X,Y);
+		?currentPartner(Agent);
+		if(Y==1)//rotate to point north
+		{
+			if(grabDirection("s")){rotate("cw");-+grabDirection("w")}
+			elif(grabDirection("e")){rotate("ccw");-+grabDirection("n");.send(Agent,tell,readyToSupport("n"));-+currentIntention("connect")}
+			elif(grabDirection("w")){rotate("cw");-+grabDirection("n");.send(Agent,tell,readyToSupport("n"));-+currentIntention("connect")}
+		}
+		else //point east
+		{
+			if(grabDirection("s")){rotate("ccw");-+grabDirection("e");.send(Agent,tell,readyToSupport("e"));-+currentIntention("connect")}
+			elif(grabDirection("n")){rotate("cw");-+grabDirection("e");.send(Agent,tell,readyToSupport("e"));-+currentIntention("connect")}
+			elif(grabDirection("w")){rotate("cw");-+grabDirection("n")}
+		}
+		.print("start merge").
 		
-		
-+!mergeBlocks : ~isSupport(true)& parterIsReady(X,Y) <-
-		.print("start merge");
-		// move towards the partner
-		//calculate middle Point
-		?currentPosition(MyX,MyY);
-		!moveTowards((MyX-X)/2,(MyY-Y)/2);
-		!reducePath(0).
++!mergeBlocks : ~isSupport(true)& partnerIsReady(X,Y) <-
+	?currentPartner(Agent);
+	if(grabDirection("n")){rotate("cw");-+grabDirection("e")}
+	elif(grabDirection("e")){rotate("cw");-+grabDirection("s");.send(Agent,tell,readyToConnect("s"));-+currentIntention("connect")}
+	elif(grabDirection("w")){rotate("ccw");-+grabDirection("s");.send(Agent,tell,readyToConnect("s"));-+currentIntention("connect")}
+	.print("start merge").
 		
 +!mergeBlocks :true <-
 	.print("waiting for Partner");
 	skip.
 
++!connect : readyToSupport(SupportGrab) <-
+	?currentPartner(Agent);
+	?grabDirection(GrabDir);
+	connect(Agent,0,1);
+	-+currentIntention("submit").
++!connect : readyToConnect(MainGrabber) <-
+	?currentPartner(Agent);
+	?grabDirection(GrabDir);
+	if(GrabDir == "n"){connect(Agent,0,-1)}
+	elif(GrabDir == "e"){connect(Agent,1,0)}
+	-currentPartner;
+	-taskID;
+	-taskAccepted;
+	-+currentIntention("move");
+	!findTaskboard.
 	
-//rotating the attached block 
-//todo unabhängig von submit machen
-+!submit : grabDirection("n") <-	rotate("cw");	-+grabDirection("e").
-+!submit : grabDirection("e") <-	rotate("cw");	-+grabDirection("s").
-+!submit : grabDirection("w") <-	rotate("ccw");	-+grabDirection("s").
-
 //submitting a task, deleting the task from the beliefbase
-+!submit : grabDirection("s") <-
++!submit : true <-
 	?taskID(TaskID);
 	submit(TaskID);
 	-taskID;
 	-+currentIntention("move");
 	!findTaskboard;
+	.print("I DID IT!");
 	-taskAccepted.
 	//todo? telling other agents that the task is finished, maybe usefull for pvp
 

@@ -35,9 +35,9 @@ path("").  //starting path
 pathgoal(""). //movementgoal
 currentIntention("move"). //agents want to move
 currentStep(0). //step of the round
-//vl(0). //wof?r war das?
+//vl(0). //wofür war das?
 
-// brauchen wir die noch f?r 2Blocktasks?
+// brauchen wir die noch für 2Blocktasks?
 //secondBlock().
 //currentPartner().
 //isSupport().
@@ -52,8 +52,8 @@ obstacle().
 
 /* Initial goals */
 
-//!findTaskboard. //every agent should look for a task
-//!randomMovement. //kann weg?
+!findTaskboard. //every agent should look for a task
+//!randomMovement. kann weg?
 
 /* Plans */
 
@@ -66,8 +66,6 @@ obstacle().
 +actionID(X) : currentIntention("move") <- 		!delayMovement.	
 +actionID(X) : currentIntention("submit") <-	!submit.	
 +actionID(X) : currentIntention("choosePartner") <-	!choosePartner.
-+actionID(X) : currentIntention("merge") <-	!mergeBlocks.
-+actionID(X) : currentIntention("check") <-	!check.
 +lastActionResult(failed) :true <- 
 	.print("last action failed").
 
@@ -79,80 +77,31 @@ obstacle().
 +task(TaskID,Deadline,X,[req(XB,YB,RB),req(XA,YA,RA)]) : true <-
 	?currentStep(Step);
 	if(Deadline > (Step + 50)){+currentTasks(TaskID,Deadline,1,[req(XB,YB,RB),req(XA,YA,RA)])}.
-	
-+taskboard(X,Y) : pathgoal("taskboard")<-
-	!findTaskboard.
-	
 +path("") : pathgoal("") <-		 //no path and no current goal ---> restart randomMovement
 	.print("finished my Movement.. Restart");
-	!findTaskboard.
+	!randomMovement.
 
-+path(""): pathgoal("taskboard") | pathgoal("dispenser") |pathgoal("goalZone") <-
-	-+currentIntention("check").
 //Switching to next next goal when the old one is achieved
-//Checking if POI is actually reached
-+!check : pathgoal("taskboard") <-	//taskboard
++path("") : pathgoal("taskboard") <-	//TODO
 	-+pathgoal("");
-	?currentPosition(X,Y);
-	?closestPOI(ClosestX,ClosestY);
-	if ((math.abs(X-ClosestX) + math.abs(Y-ClosestY))<3)
-	{
-		.print("current Pos", X,Y);
-		.print("closest Board",ClosestX,ClosestY);
-		-+currentIntention("accept");
-		!acceptTask;
-		.print("reached board");}
-		
-	else
-	{
-		!findTaskboard;
-		-+currentIntention("move");
-		.print("failed to reach board");
-	}.
+	.print("reached board");
+	-+currentIntention("accept").
 	
-+!check : pathgoal("dispenser") <-	//dispenser
-	//-+pathgoal("");
-	?currentPosition(X,Y);
-	?closestPOI(ClosestX,ClosestY); //TODO storing dispenser type
-	?blockToFind(Block);
-	if ((math.abs(X-ClosestX) + math.abs(Y-ClosestY))<2)
-	{
-		.print("want to be close to",ClosestX,ClosestY);
-		.print("I am currently at ",X,Y);
-		-+currentIntention("request");
-		!requestBlock;
-		.print("reached dispenser");
-	}
-	else
-	{
-		!findDispenser(Block);
-		-+currentIntention("move");
-		.print("failed to reach dispenser, trying again");
-	}.
-
-+!check : pathgoal("goalZone") <-	//Goal
++path("") : pathgoal("dispenser") <-	//TODO
 	-+pathgoal("");
-	?currentPosition(X,Y);
-	?closestPOI(ClosestX,ClosestY);
-	if ((math.abs(X-ClosestX) + math.abs(Y-ClosestY))==0){
-		-+currentIntention("submit");
-		!submit;
-		.print("reached goal");}
-	else
-	{
-		!findGoalzone;
-		-+currentIntention("move");
-		.print("failed to reach goal");
-	}.
-//Obstacle avoidance no longer needed?
+	.print("reached dispenser");
+	-+currentIntention("request").
+
++path("") : pathgoal("goalZone") <-	//TODO
+	-+pathgoal("");
+	.print("reached goal");
+	-+currentIntention("submit").
+//Obstacle avoidance
 /*+lastActionResult(failed_path) : ~pathgoal("") <-
 	?pathgoal(P);
 	
 	-+pathgoal("");
 	-+searchFor(P). */
-	
-+!check <-
-	!randomMovement.
 
 //map commuication, agents sending positions of POIs to other agents
 +!updateSurroundings :true <-
@@ -180,7 +129,7 @@ obstacle().
 	//TODO Obstacles
 	for(thing(AX,AY,entity,_))
 	{
-		+obstacles(AX,AY);
+		+agents(AX,AY);
 	};
 	/*for(obstacle(OX,OY))
 	{
@@ -211,7 +160,6 @@ obstacle().
 	.nth(0,Direction,X);
 	.nth(1,Direction,Y);
 	.abolish(moveTowards(_,_));
-	-+closestPOI(X,Y);
 	!moveTowards(X,Y).
 +!randomMovement <- !randomMovement.
 
@@ -220,37 +168,50 @@ obstacle().
 	?path(MovePath); 
 	.nth(0,MovePath,Direction);
 	?closestPOI(ClosestX,ClosestY);
-	/*for(obstacle(OX,OY))
+	for(obstacle(OX,OY))
 	{
 		if ((ClosestX <= OX) & (ClosestY <=OY)){ //POI between agent and obstacle
 			//continue as intended, cause obstacle is not an issue
-			}//problem: obstacles in 2-3 directions
+			}
 		else{
-			if((Direction == "n" & OY == -1)|(Direction == "s" & OY == 1)){
+			if(Direction == "n" & OY == -1){
 				if (ClosestX <0){
 					.concat("www",MovePath,NewPath);
 					-+path(NewPath);}
 				else{
 					.concat("eee",MovePath,NewPath);
 					-+path(NewPath);}}
-			elif((Direction == "e" & OX == 1)|(Direction == "w" & OX == -1)){
+			elif(Direction == "e" & OX == 1){
 				if (ClosestY <0){
 					.concat("nnn",MovePath,NewPath);
 					-+path(NewPath);}
 				else{
-					.concat("sss",MovePath,NewPath);
+					.concat("nnn",MovePath,NewPath);
 					-+path(NewPath);}}
-		};
+			elif(Direction == "s" & OY == 1){
+				if (ClosestX <0){
+					.concat("www",MovePath,NewPath);
+					-+path(NewPath);}
+				else{
+					.concat("eee",MovePath,NewPath);
+					-+path(NewPath);}}
+			elif(Direction == "w" & OX == -1){
+				if (ClosestY <0){
+					.concat("nnn",MovePath,NewPath);
+					-+path(NewPath);}
+				else{
+					.concat("nnn",MovePath,NewPath);
+					-+path(NewPath);}}
+		}
 	};
-	*/
-	.nth(0,MovePath,NewDirection);
 	.abolish(obstacle(_,_));
 	//!delayMovement.
 	.delete(0,MovePath,P);
-	move(NewDirection);
+	move(Direction);
 	?currentPosition(X,Y);
 	-+believePosition(X,Y);
-	-+lastDirection(NewDirection);
+	
+	-+lastDirection(Direction);
 	-+path(P).
 	
 +!delayMovement : path("") <-
@@ -295,63 +256,86 @@ obstacle().
 	?currentPosition(PX,PY);
 	-+closestPOI(TX,TY);
 	.findall(taskboardPos(X,Y),taskboard(X,Y),List); 
-	for(taskboard(NewX,NewY)) //determinating which tasboard is the nearest
+	for(.member(i(NewX,NewY),List)) //determinating which tasboard is the nearest
 	{
-		
 		?closestPOI(ClosestX,ClosestY);
 		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion); //bestpartner function umbenennen?
 		if(Conclusion =="new"){-+closestPOI(NewX,NewY)};
 	};
-	
-	?closestPOI(CX,CY); //bewegung zum taskboard inizialisieren
+	?closestPOI(ClosestX,ClosestY); //bewegung zum taskboard inizialisieren
 	.drop_intention(randomMovement);
-	//.suspend(delayMovement);
+	.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
 	-+pathgoal("taskboard");
-	
 	.abolish(moveTowards(_,_));
-	!moveTowards(CX-PX,CY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
-	!reducePathBy(2). //agents can accepts tasks within a range of 2 blocks from taskboard
-	//.resume(delayMovement).		//resume Movement Intention
+	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!reducePathBy(2); //agents can accepts tasks within a range of 2 blocks from taskboard
+	.resume(delayMovement).		//resume Movement Intention
 	
-+!findTaskboard <- !randomMovement.
++!findTaskboard <- !findTaskboard.
 -!findTaskboard <- //for debug
 	.print("find Taskboard failed").
 
 //finding dispenser 1&0
-+!findDispenser(Block) : dispenser(DX,DY,Block) <-
-	-+blockToFind(Block);
++!findDispenser_1 : dispenser(DX,DY,"b1") <-
 	//Find closest of the Item to search
 	?currentPosition(PX,PY);
 	-+closestPOI(DX,DY);
-	for(dispenser(NewX,NewY,Block))
+	.findall(dispenserPos(X,Y),dispenser(X,Y,"b1"),List);
+	for(.member(i(NewX,NewY),List))
 	{
 		?closestPOI(ClosestX,ClosestY);
 		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
 		if(Conclusion =="new"){-+closestPOI(NewX,NewY)};
 	};
-	?closestPOI(CX,CY);
+	?closestPOI(ClosestX,ClosestY);
 	.drop_intention(randomMovement);
 	.suspend(delayMovement);
 	-+pathgoal("temp");
 	-+path("");
 	-+pathgoal("dispenser");
 	.abolish(moveTowards(_,_));
-	!moveTowards(CX-PX,CY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
 	!reducePathBy(1);	//request block from an adjecent tile
 	.resume(delayMovement).		//resume Movement Intention
 	
--!findDispenser <-
+-!findDispenser_1 <-
 	.print("find Dispenser1 failed").
-
-
+	
+//analog zu dispenser_1
++!findDispenser_0 : dispenser(DX,DY,"b0") <-
+	//Find closest of the Item to search
+	?currentPosition(PX,PY);
+	-+closestPOI(DX,DY);
+	.findall(dispenserPos(X,Y),dispenser(X,Y,"b1"),List);
+	for(.member(i(NewX,NewY),List))
+	{
+		?closestPOI(ClosestX,ClosestY);
+		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
+		if(Conclusion =="new"){-+closestPOI(NewX,NewY)};
+	};
+	?closestPOI(ClosestX,ClosestY);
+	.drop_intention(randomMovement);
+	.suspend(delayMovement);
+	-+pathgoal("temp");
+	-+path("");
+	-+pathgoal("dispenser");
+	.abolish(moveTowards(_,_));
+	!moveTowards(ClosestX-PX,ClosestY-PY);		//reference self back to world center and then towards the point to get the "distance" to object
+	!reducePathBy(1);
+	.resume(delayMovement).		//resume Movement Intention
+	
+-!findDispenser_0 <-
+	.print("find Dispenser0 failed").	
+	
 //finding goalzones
 +!findGoalzone : goals(GX,GY) <-
 	//Find closest of the Item to search
 	?currentPosition(PX,PY);
 	-+closestPOI(GX,GY);
-	for(goals(NewX,NewY))
+	.findall(goalPos(X,Y),goals(X,Y),List);
+	for(.member(i(NewX,NewY),List))
 	{
 		?closestPOI(ClosestX,ClosestY);
 		lib.findBestPartner(PX,PY,ClosestX,ClosestY,NewX,NewY,Conclusion);
@@ -390,16 +374,13 @@ obstacle().
 			if(XB == 0 & YB ==1)
 			{
 				-+secondBlock(XA,YA,RA); // 2-Block tasks only
-				if(.substring("b0",RB)){!findDispenser("b0");}
-				elif(.substring("b1",RB)){!findDispenser("b1");}
-				elif(.substring("b2",RB)){!findDispenser("b2");}
-			}
+				if(.substring("b0",RB)){!findDispenser_0;}
+				else{!findDispenser_1;}}
 			else
 			{
 				-+secondBlock(XB,YB,RB); // 2-Block tasks only
-				if(.substring("b0",RA)){!findDispenser("b0");}
-				elif(.substring("b1",RA)){!findDispenser("b1");}
-				elif(.substring("b2",RA)){!findDispenser("b2");}
+				if(.substring("b0",RA)){!findDispenser_0;}
+				else{!findDispenser_1;}
 			}
 			//-+currentIntention("move");	//only for 1-Block Tasks
 			
@@ -413,6 +394,8 @@ obstacle().
 +!acceptTask <- !acceptTask.
 -!acceptTask <-
 	.print("failed accept Task");
+	-+currentIntention("move");
+	!findTaskboard;
 	skip.
 	
 //answering to finding a partner for 2-block tasks	
@@ -458,19 +441,15 @@ obstacle().
 	.send(AgentName,achieve,chosenAsSupport(MyName,BX,BY,Block)).
 
 +!choosePartner : true <-
-	.print("got no replies");
-	skip.
+	.print("got no replies").
 	
 //chosen support agent updates its belief and starts his part of the task
 +!chosenAsSupport(AgentName,X,Y,Block) : true <-
 	-+currentPartner(AgentName);
 	-+isSupport(true);
 	-+taskAccepted(true);
-	?currentStep(Step);
-	.print(Step);
-	if(.substring("b0",Block)){!findDispenser("b0");}
-	elif(.substring("b1",Block)){!findDispenser("b1");}
-	elif(.substring("b2",Block)){!findDispenser("b2");}
+	if(.substring("b0",Block)){!findDispenser_0;}
+			else{!findDispenser_1;}
 	-+currentIntention("move").	
 
 //requesting block from dispenser 
@@ -485,13 +464,12 @@ obstacle().
 	?grabDirection(Direction);
 	attach(Direction);
 	.print("grabbed block!");
-	
+	-+currentIntention("move");
 	?currentPartner(AgentName);
 	?currentPosition(X,Y);
 	.send(AgentName,tell,partnerIsReady(X,Y));
 	//!findGoalzone.
-	-+currentIntention("move");
-	!randomMovement.
+	!mergeBlocks.
 	
 +!mergeBlocks : isSupport(true) & parterIsReady(X,Y)<-
 		.print("start merge");
@@ -516,7 +494,7 @@ obstacle().
 
 	
 //rotating the attached block 
-//todo unabh?ngig von submit machen
+//todo unabhängig von submit machen
 +!submit : grabDirection("n") <-	rotate("cw");	-+grabDirection("e").
 +!submit : grabDirection("e") <-	rotate("cw");	-+grabDirection("s").
 +!submit : grabDirection("w") <-	rotate("ccw");	-+grabDirection("s").
